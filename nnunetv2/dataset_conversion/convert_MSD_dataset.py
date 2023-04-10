@@ -129,4 +129,5 @@ def entry_point():
 
 
 if __name__ == '__main__':
-    convert_msd_dataset('/home/fabian/Downloads/Task05_Prostate', overwrite_target_id=201)
+    # convert_msd_dataset('/home/fabian/Downloads/Task05_Prostate', overwrite_target_id=201)
+    entry_point()

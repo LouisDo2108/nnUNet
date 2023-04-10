@@ -61,30 +61,33 @@ def convert_labels_back_to_BraTS_2018_2019_convention(input_folder: str, output_
 
 
 if __name__ == "__main__":
-    # """
-    # REMEMBER TO CONVERT LABELS BACK TO BRATS CONVENTION AFTER PREDICTION!
-    # """
-    brats_data_dir_train = '/home/dtpthao/workspace/nnUNet/data/BraTS_2018/train'
-    brats_data_dir_train_hgg = '/home/dtpthao/workspace/nnUNet/data/BraTS_2018/train/HGG'
-    brats_data_dir_train_lgg = '/home/dtpthao/workspace/nnUNet/data/BraTS_2018/train/LGG'
-    brats_data_dir_test = '/home/dtpthao/workspace/nnUNet/data/BraTS_2018/test'
-
-    task_id = 32
-    task_name = "BraTS2018"
-
-    foldername = "Dataset%03.0d_%s" % (task_id, task_name)
     
-    out_base = join(nnUNet_raw, foldername)
-    imagestr = join(out_base, "imagesTr")
-    imagests = join(out_base, "imagesTs")
-    labelstr = join(out_base, "labelsTr")
-    maybe_mkdir_p(imagestr)
-    maybe_mkdir_p(imagests)
-    maybe_mkdir_p(labelstr)
+    """
+    REMEMBER TO CONVERT LABELS BACK TO BRATS CONVENTION AFTER PREDICTION!
+    """
     
-    case_ids_hgg = subdirs(brats_data_dir_train_hgg,  prefix='Brats18', join=False)
-    case_ids_lgg = subdirs(brats_data_dir_train_lgg, prefix='Brats18', join=False)
-    case_ids_test = subdirs(brats_data_dir_test, prefix='Brats18', join=False)
+    # # 1. Dataset conversion (Train + Test)
+    # brats_data_dir_train = '/home/dtpthao/workspace/nnUNet/data/BraTS_2018/train'
+    # brats_data_dir_train_hgg = '/home/dtpthao/workspace/nnUNet/data/BraTS_2018/train/HGG'
+    # brats_data_dir_train_lgg = '/home/dtpthao/workspace/nnUNet/data/BraTS_2018/train/LGG'
+    # brats_data_dir_test = '/home/dtpthao/workspace/nnUNet/data/BraTS_2018/test'
+
+    # task_id = 32
+    # task_name = "BraTS2018"
+
+    # foldername = "Dataset%03.0d_%s" % (task_id, task_name)
+    
+    # out_base = join(nnUNet_raw, foldername)
+    # imagestr = join(out_base, "imagesTr")
+    # imagests = join(out_base, "imagesTs")
+    # labelstr = join(out_base, "labelsTr")
+    # maybe_mkdir_p(imagestr)
+    # maybe_mkdir_p(imagests)
+    # maybe_mkdir_p(labelstr)
+    
+    # case_ids_hgg = subdirs(brats_data_dir_train_hgg,  prefix='Brats18', join=False)
+    # case_ids_lgg = subdirs(brats_data_dir_train_lgg, prefix='Brats18', join=False)
+    # case_ids_test = subdirs(brats_data_dir_test, prefix='Brats18', join=False)
     
     # for c in case_ids_hgg:
     #     shutil.copy(join(brats_data_dir_train_hgg, c, c + "_t1.nii.gz"), join(imagestr, c + '_0000.nii.gz'))
@@ -109,18 +112,27 @@ if __name__ == "__main__":
     #     shutil.copy(join(brats_data_dir_test, c, c + "_t2.nii.gz"), join(imagests, c + '_0002.nii.gz'))
     #     shutil.copy(join(brats_data_dir_test, c, c + "_flair.nii.gz"), join(imagests, c + '_0003.nii.gz'))
     
-    generate_dataset_json(out_base,
-                          channel_names={0: 'T1', 1: 'T1ce', 2: 'T2', 3: 'Flair'},
-                          labels={
-                              'background': 0,
-                              'whole tumor': (1, 2, 3),
-                              'tumor core': (2, 3),
-                              'enhancing tumor': (3, )
-                          },
-                          num_training_cases=len(case_ids_hgg) + len(case_ids_lgg),
-                          file_ending='.nii.gz',
-                          regions_class_order=(1, 2, 3),
-                          dataset_name='BraTS2018',
-                          license='see BraTS2018',
-                          reference='see BraTS2019 license',
-                          dataset_release='0.0')
+    # generate_dataset_json(out_base,
+    #                       channel_names={0: 'T1', 1: 'T1ce', 2: 'T2', 3: 'Flair'},
+    #                       labels={
+    #                           'background': 0,
+    #                           'whole tumor': (1, 2, 3),
+    #                           'tumor core': (2, 3),
+    #                           'enhancing tumor': (3, )
+    #                       },
+    #                       num_training_cases=len(case_ids_hgg) + len(case_ids_lgg),
+    #                       file_ending='.nii.gz',
+    #                       regions_class_order=(1, 2, 3),
+    #                       dataset_name='BraTS2018',
+    #                       license='see BraTS2018',
+    #                       reference='see BraTS2019 license',
+    #                       dataset_release='0.0')
+    
+    
+    # # 2. After training and inference, convert the inference folder's .nii.gz file labels back to BraTS convention
+    test_input_folder = "/home/dtpthao/workspace/nnUNet/env/results/Dataset032_BraTS2018/nnUNetTrainer__nnUNetPlans__3d_fullres/fold_0/inference"
+    test_output_folder = "/home/dtpthao/workspace/nnUNet/env/results/Dataset032_BraTS2018/nnUNetTrainer__nnUNetPlans__3d_fullres/fold_0/inference_brats_format"
+    convert_labels_back_to_BraTS_2018_2019_convention(
+        test_input_folder,
+        test_output_folder
+    )
