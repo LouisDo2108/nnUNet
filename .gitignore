@@ -1,6 +1,9 @@
 # Tuan-Luc Huynh
 data/
 *.out
+*.pt
+*.pth
+nnunetv2/tuanluc_dev/results
 
 # Byte-compiled / optimized / DLL files
 __pycache__/

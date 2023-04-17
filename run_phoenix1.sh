@@ -1,4 +1,5 @@
 #!/bin/bash
+export CUDA_DEVICE_ORDER=PCI_BUS_ID # Change according to GPU availability
 export CUDA_VISIBLE_DEVICES=0 # Change according to GPU availability
 nnUNet_raw="/tmp/htluc/nnunet/nnUNet_raw/"; export nnUNet_raw
 nnUNet_preprocessed="/tmp/htluc/nnunet/nnUNet_preprocessed"; export nnUNet_preprocessed
@@ -18,20 +19,21 @@ cd /home/dtpthao/workspace/nnUNet/nnunetv2
 # --verbose
 
 # 2. Train + Val fold 0
-# python run/run_training.py 032 3d_fullres_bs4 0 -num_gpus 1
+# python run/run_training.py 032 3d_fullres_bs4_hgg_lgg 0 -num_gpus 1
 
 # (Optional) 2.1  find best config (Only viable after training all 5 folds)
-# python evaluation/find_best_configuration.py 032 -c 3d_fullres_bs4 -f 0 --disable_ensembling
+# python evaluation/find_best_configuration.py 032 -c 3d_fullres_bs4_batch_dice -f 0 --disable_ensembling
 
 # 3. Test (nnUnet format)
 # The -o (output folder) should locate in /home/dtpthao/workspace/nnUNet/env/results/Dataset032_BraTS2018/{something}
+# imagesTs imagesTr
 # python /home/dtpthao/workspace/nnUNet/nnunetv2/inference/predict_from_raw_data.py \
 # -i /tmp/htluc/nnunet/nnUNet_raw/Dataset032_BraTS2018/imagesTs \
-# -o /home/dtpthao/workspace/nnUNet/env/results/Dataset032_BraTS2018/nnUNetTrainer__nnUNetPlans__3d_fullres/fold_0 \
+# -o /home/dtpthao/workspace/nnUNet/env/results/Dataset032_BraTS2018/nnUNetTrainer__nnUNetPlans__3d_fullres_bs4_hgg_lgg/fold_0/test \
 # -d 032 \
-# -c 3d_fullres_bs4 \
+# -c 3d_fullres_bs4_hgg_lgg \
 # -f 0 \
 # --verbose
 
 # 4. Convert back to BraTS2018 format
-# python dataset_conversion/Dataset032_BraTS2018.py
+python dataset_conversion/Dataset032_BraTS2018.py
