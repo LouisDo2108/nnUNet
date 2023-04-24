@@ -4,7 +4,14 @@ from dynamic_network_architectures.initialization.weight_init import init_last_b
 from nnunetv2.utilities.network_initialization import InitWeights_He
 from nnunetv2.utilities.plans_handling.plans_handler import ConfigurationManager, PlansManager
 from torch import nn
-from nnunetv2.tuanluc_dev.network_initialization import init_weights_from_pretrained
+from nnunetv2.tuanluc_dev.network_initialization import (
+    init_weights_from_pretrained, 
+    replace_nnunet_conv3d_with_acsconv_random,
+    get_acs_pretrained_weights,
+    replace_nnunet_encoder_conv3d_with_acs_pretrained,
+    replace_nnunet_encoder_conv3d_with_acs_pretrained_all
+)
+
 
 def get_network_from_plans(plans_manager: PlansManager,
                            dataset_json: dict,
@@ -71,10 +78,27 @@ def get_network_from_plans(plans_manager: PlansManager,
         **conv_or_blocks_per_stage,
         **kwargs[segmentation_network_class_name]
     )
+    
     model.apply(InitWeights_He(1e-2))
     if network_class == ResidualEncoderUNet:
         model.apply(init_last_bn_before_add_to_0)
-    model = init_weights_from_pretrained(
-        nnunet_model=model, 
-        pretrained_model_path="/home/dtpthao/workspace/nnUNet/nnunetv2/tuanluc_dev/results/hgg_lgg/checkpoints/model_95.pt")
+        
+    # Replace encoder conv with ACSConv pretrained
+    _, acsconv_dict = get_acs_pretrained_weights(model_name='resnet18')
+    # Replace conv with ACSConv
+    try:
+        replace_nnunet_conv3d_with_acsconv_random(model, nn.Conv3d)
+        print("Successfully replaced conv3d with ACSConv")
+        # replace_nnunet_encoder_conv3d_with_acs_pretrained(model.encoder, acsconv_dict)
+        # print("Successfully load pretrained weights for ACSConv")
+        replace_nnunet_encoder_conv3d_with_acs_pretrained_all(model.encoder, acsconv_dict)
+        print("Successfully load pretrained weights for all ACSConv")
+    except Exception as e:
+        print(e)
+        
+    # Init weights from pretrained encoder (Proxy task)
+    # model = init_weights_from_pretrained(
+    #     nnunet_model=model, 
+    #     pretrained_model_path="/home/dtpthao/workspace/nnUNet/nnunetv2/tuanluc_dev/results/hgg_lgg/checkpoints/model_55.pt")
+    
     return model

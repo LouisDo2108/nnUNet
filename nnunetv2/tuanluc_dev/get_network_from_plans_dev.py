@@ -6,6 +6,7 @@ from typing import Union, Optional
 import nnunetv2
 
 from dynamic_network_architectures.architectures.unet import PlainConvUNet, ResidualEncoderUNet
+from dynamic_network_architectures.building_blocks.simple_conv_blocks import ConvDropoutNormReLU
 from dynamic_network_architectures.building_blocks.plain_conv_encoder import PlainConvEncoder
 from dynamic_network_architectures.building_blocks.helper import get_matching_instancenorm, convert_dim_to_conv_op
 from dynamic_network_architectures.initialization.weight_init import init_last_bn_before_add_to_0
@@ -163,11 +164,11 @@ def get_network_from_plans(plans_manager: PlansManager,
     # return model
     
     # Return only the encoder with no skip connections
-    print("num_input_channels", num_input_channels)
-    print("num_stages", num_stages)
-    print("features_per_stage", [min(configuration_manager.UNet_base_num_features * 2 ** i,
-                                configuration_manager.unet_max_num_features) for i in range(num_stages)])
-    print("n_conv_per_stage", conv_or_blocks_per_stage['n_conv_per_stage'])
+    # print("num_input_channels", num_input_channels)
+    # print("num_stages", num_stages)
+    # print("features_per_stage", [min(configuration_manager.UNet_base_num_features * 2 ** i,
+    #                             configuration_manager.unet_max_num_features) for i in range(num_stages)])
+    # print("n_conv_per_stage", conv_or_blocks_per_stage['n_conv_per_stage'])
 
     model.encoder.return_skips = False
     return model.encoder

@@ -1,36 +1,18 @@
-# import os
-# os.environ["CUDA_DEVICE_ORDER"] = "PCI_BUS_ID"
-# os.environ["CUDA_VISIBLE_DEVICES"] = "1"
-import torch
-from torch import nn
-from nnunetv2.tuanluc_dev.encoder import HGGLGGClassifier
-from nnunetv2.tuanluc_dev.acsconv.operators import ACSConv
-from dynamic_network_architectures.building_blocks.simple_conv_blocks import StackedConvBlocks
-import timm
+import os
+os.environ["CUDA_LAUNCH_BLOCKING"] = "1"
+os.environ["CUDA_DEVICE_ORDER"]="PCI_BUS_ID"   
+os.environ["CUDA_VISIBLE_DEVICES"]= "1"
+
 from collections import defaultdict
 from natsort import natsorted
-# from nnunetv2.tuanluc_dev.get_network_from_plans import get_encoder
-
-class InitWeights_He(object):
-    def __init__(self, neg_slope=1e-2):
-        self.neg_slope = neg_slope
-
-    def __call__(self, module):
-        if isinstance(module, nn.Conv3d) or isinstance(module, nn.Conv2d) or isinstance(module, nn.ConvTranspose2d) or isinstance(module, nn.ConvTranspose3d):
-            module.weight = nn.init.kaiming_normal_(module.weight, a=self.neg_slope)
-            if module.bias is not None:
-                module.bias = nn.init.constant_(module.bias, 0)
-
-
-@torch.no_grad()
-def init_weights_from_pretrained(nnunet_model, pretrained_model_path):
-    pretrained_model = HGGLGGClassifier(4, 2, return_skips=True)
-    loaded = torch.load(pretrained_model_path, map_location=torch.device('cpu'))
-    pretrained_model.load_state_dict(loaded, strict=False)
-    del loaded
-    pretrained_encoder = pretrained_model.encoder
-    nnunet_model.encoder = pretrained_encoder.to(torch.device('cuda'))
-    return nnunet_model
+import torch
+import torch.nn as nn
+from nnunetv2.tuanluc_dev.acsconv.operators import ACSConv
+from dynamic_network_architectures.building_blocks.simple_conv_blocks import ConvDropoutNormReLU, StackedConvBlocks
+from nnunetv2.tuanluc_dev.get_network_from_plans_dev import get_encoder
+from torchsummary import summary
+import timm
+from pprint import pprint
 
 
 def replace_nnunet_conv3d_with_acsconv_random(model, target_layer):
@@ -41,6 +23,20 @@ def replace_nnunet_conv3d_with_acsconv_random(model, target_layer):
             
         if isinstance(module, target_layer):
             setattr(model, n, ACSConv(module.in_channels, module.out_channels, module.kernel_size, module.stride, module.padding, module.dilation, module.groups))
+   
+    
+def print_layers(model, target_layer):
+    try:
+        for n, module in model.named_children():
+            if len(list(module.children())) > 0:
+                ## compound module, go inside it
+                print_layers(module, target_layer)
+            
+            if isinstance(module, target_layer):
+                print(module)
+                print('-----------------------')
+    except Exception as e:
+        print(e)
 
 
 def get_acs_pretrained_weights(model_name='resnet18'):
@@ -55,12 +51,11 @@ def get_acs_pretrained_weights(model_name='resnet18'):
             mapping from layer keys to lists of corresponding Conv2d and ACSConv layers
     """
     model = timm.create_model(model_name, pretrained=True)
-    
     conv2d_dict = defaultdict(list)
     acsconv_dict = defaultdict(list)
     
     for name, module in model.named_modules():
-        if isinstance(module, nn.Conv2d) and len(name.split('.')) == 3:
+        if isinstance(module, nn.Conv2d):
             # parse out the input and output channels, layer number, and index
             layer_name = name.split('.')[0]
             conv_params = module.weight.shape
@@ -183,11 +178,12 @@ def replace_nnunet_encoder_conv3d_with_acs_pretrained_all(encoder, acsconv_dict)
     return encoder
 
 
-if __name__ == "__main__":
-    pass
-    # nnunet_trainer = get_encoder()
-    # nnunet_trainer = init_weights_from_pretrained(
-    #     nnunet_trainer, 
-    #     "/home/dtpthao/workspace/nnUNet/nnunetv2/tuanluc_dev/results/hgg_lgg/checkpoints/model_95.pt"
-    # )
-    # print(nnunet_trainer.network.encoder)
+if __name__ == '__main__':
+
+    conv2d_dict, acsconv_dict = get_acs_pretrained_weights(model_name='resnet18')
+    encoder = get_encoder()
+    # print("Encoder before", encoder)
+    # replace_nnunet_conv3d_with_acsconv_random(encoder, nn.Conv3d)
+    # replace_nnunet_encoder_conv3d_with_acs_pretrained(encoder, acsconv_dict)
+    # replace_nnunet_encoder_conv3d_with_acs_pretrained_all(encoder, acsconv_dict)
+    print("Encoder after", encoder)

@@ -73,12 +73,12 @@ class BRATSDataset(Dataset):
             for filename in self.dataset_json["train"]:
                 self.paths.append(self.preprocessed_data_path + "/" + filename + ".npy")
                 self.labels.append(self.label_dict[filename])
-            # print("Train LGG: ", len(np.array(self.labels)[np.array(self.labels) == 0]))
+            print("Train LGG: ", len(np.array(self.labels)[np.array(self.labels) == 0]))
         else:
             for filename in self.dataset_json["val"]:
                 self.paths.append(self.preprocessed_data_path + "/" + filename + ".npy")
                 self.labels.append(self.label_dict[filename])
-            # print("Val LGG: ", len(np.array(self.labels)[np.array(self.labels) == 0]))
+            print("Val LGG: ", len(np.array(self.labels)[np.array(self.labels) == 0]))
         
     def __len__(self):
         return len(self.paths)

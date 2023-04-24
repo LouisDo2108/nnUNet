@@ -1,7 +1,7 @@
 import os
 os.environ["CUDA_LAUNCH_BLOCKING"] = "1"
 os.environ["CUDA_DEVICE_ORDER"]="PCI_BUS_ID"   
-os.environ["CUDA_VISIBLE_DEVICES"]= "1"
+os.environ["CUDA_VISIBLE_DEVICES"]= "0"
 
 from pathlib import Path
 from tqdm import tqdm
@@ -21,13 +21,14 @@ import matplotlib.pyplot as plt
 
 def plot_loss(train_losses, val_losses, output_folder):
     # Plot the training and validation losses
-    epochs = range(1, len(train_losses) + 1)
+    epochs = range(5, 5*len(train_losses) + 1, 5)
     plt.plot(epochs, train_losses, 'g', label='Training loss')
     plt.plot(epochs, val_losses, 'b', label='Validation loss')
     plt.title('Training and validation loss')
     plt.xlabel('Epochs')
     plt.ylabel('Loss')
-    plt.legend()
+    if len(val_losses) == 1:
+        plt.legend()
     
     # Save the plot as a PNG picture
     plt.savefig(os.path.join(output_folder, 'loss_plot.png'))
@@ -54,13 +55,16 @@ class PolyLRScheduler(_LRScheduler):
 
 def train(model, train_loader, val_loader, 
           output_folder="/home/dtpthao/workspace/nnUNet/nnunetv2/tuanluc_dev/checkpoints",
-          num_epochs=100, learning_rate=0.01):
+          num_epochs=100, learning_rate=0.001):
     
-    optimizer = optim.SGD(model.parameters(), lr=learning_rate, momentum=0.99, nesterov=True)
-    scheduler = PolyLRScheduler(optimizer, learning_rate, num_epochs)
-    criterion = nn.BCEWithLogitsLoss()
     device = torch.device("cuda" if torch.cuda.is_available() else "cpu")
+    optimizer = optim.SGD(model.parameters(), lr=learning_rate, momentum=0.99, nesterov=True)
+    # optimizer = optim.Adam(model.parameters(), lr=learning_rate)
+    scheduler = PolyLRScheduler(optimizer, learning_rate, num_epochs)
+    # scheduler = optim.lr_scheduler.ReduceLROnPlateau(optimizer, mode='min', factor=0.1, patience=5, verbose=True)
+    criterion = nn.BCEWithLogitsLoss(pos_weight=torch.tensor([59.0 / (285.0 - 59.0)]).to(device))
     model.to(device)
+    model = torch.compile(model)
      # create output folder if not exist
     Path(output_folder).mkdir(parents=True, exist_ok=True)
      # create output folder if not exist
@@ -74,17 +78,29 @@ def train(model, train_loader, val_loader,
         pbar.set_description(f"Epoch {epoch}")
         model.train()
         train_loss = 0.0
+        predictions = []
+        true_labels = []
         
         # Train
         for batch_idx, (data, target) in enumerate(train_loader):
+            pbar.set_description(f"Epoch {epoch} Batch {batch_idx}")
             data, target = data.to(device), target.float().to(device)
             optimizer.zero_grad()
             output = model(data)
+            # pbar.set_description(f"Epoch {epoch} Label: {target.cpu().tolist()}\
+            #     Output: {torch.sigmoid(output).round().squeeze(1).cpu().tolist()}")
             loss = criterion(output.squeeze(1), target)
             loss.backward()
             optimizer.step()
             train_loss += loss.item()
-
+            
+            pred = torch.sigmoid(output).round().squeeze(1)
+            predictions.extend(pred.tolist())
+            true_labels.extend(target.tolist())
+            
+        train_loss /= len(train_loader)
+        pbar.set_postfix_str(f"Train loss: {train_loss}")
+        log_metrics(output_folder, epoch, train_loss, predictions, true_labels, train=True)
         # validate on validation set every 5 epochs
         if epoch % 5 == 0:
             model.eval()
@@ -100,7 +116,7 @@ def train(model, train_loader, val_loader,
                     predictions.extend(pred.tolist())
                     true_labels.extend(target.tolist())
 
-            train_loss /= len(train_loader.dataset)
+            # train_loss /= len(train_loader.dataset)
             val_loss /= len(val_loader.dataset)
             train_losses.append(train_loss)
             val_losses.append(val_loss)
@@ -151,4 +167,4 @@ if __name__ == '__main__':
 
     train(model, train_loader, val_loader, 
           output_folder="/home/dtpthao/workspace/nnUNet/nnunetv2/tuanluc_dev/results/hgg_lgg", 
-          num_epochs=100, learning_rate=0.01)
+          num_epochs=100, learning_rate=0.001)
