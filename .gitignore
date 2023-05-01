@@ -4,6 +4,7 @@ data/
 *.pt
 *.pth
 nnunetv2/tuanluc_dev/results
+nnunetv2/tuanluc_dev/brats_slices
 
 # Byte-compiled / optimized / DLL files
 __pycache__/

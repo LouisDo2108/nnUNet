@@ -7,11 +7,11 @@ from torch import nn
 from nnunetv2.tuanluc_dev.network_initialization import (
     init_weights_from_pretrained, 
     replace_nnunet_conv3d_with_acsconv_random,
+    load_resnet18_custom_encoder,
     get_acs_pretrained_weights,
     replace_nnunet_encoder_conv3d_with_acs_pretrained,
     replace_nnunet_encoder_conv3d_with_acs_pretrained_all
 )
-
 
 def get_network_from_plans(plans_manager: PlansManager,
                            dataset_json: dict,
@@ -84,15 +84,17 @@ def get_network_from_plans(plans_manager: PlansManager,
         model.apply(init_last_bn_before_add_to_0)
         
     # Replace encoder conv with ACSConv pretrained
-    _, acsconv_dict = get_acs_pretrained_weights(model_name='resnet18')
+    pretrained_resnet18_path = "/home/dtpthao/workspace/nnUNet/nnunetv2/tuanluc_dev/results/resnet18_brats_imagenet_encoder/checkpoints/model_10.pt"
+    model_name = load_resnet18_custom_encoder(pretrained_resnet18_path)
+    _, acsconv_dict = get_acs_pretrained_weights(model_name=model_name)
     # Replace conv with ACSConv
     try:
         replace_nnunet_conv3d_with_acsconv_random(model, nn.Conv3d)
         print("Successfully replaced conv3d with ACSConv")
-        # replace_nnunet_encoder_conv3d_with_acs_pretrained(model.encoder, acsconv_dict)
-        # print("Successfully load pretrained weights for ACSConv")
-        replace_nnunet_encoder_conv3d_with_acs_pretrained_all(model.encoder, acsconv_dict)
-        print("Successfully load pretrained weights for all ACSConv")
+        replace_nnunet_encoder_conv3d_with_acs_pretrained(model.encoder, acsconv_dict)
+        print("Successfully load pretrained weights for ACSConv")
+        # replace_nnunet_encoder_conv3d_with_acs_pretrained_all(model.encoder, acsconv_dict)
+        # print("Successfully load pretrained weights for all ACSConv")
     except Exception as e:
         print(e)
         

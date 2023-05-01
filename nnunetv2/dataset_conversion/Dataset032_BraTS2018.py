@@ -130,8 +130,8 @@ if __name__ == "__main__":
     
     
     # # 2. After training and inference, convert the inference folder's .nii.gz file labels back to BraTS convention
-    test_input_folder = "/home/dtpthao/workspace/nnUNet/env/results/Dataset032_BraTS2018/nnUNetTrainer__nnUNetPlans__bs4_acs_resnet18_encoder/fold_0/train"
-    test_output_folder = "/home/dtpthao/workspace/nnUNet/env/results/Dataset032_BraTS2018/nnUNetTrainer__nnUNetPlans__bs4_acs_resnet18_encoder/fold_0/train_brats_format"
+    test_input_folder = "/home/dtpthao/workspace/nnUNet/env/results/Dataset032_BraTS2018/nnUNetTrainer__nnUNetPlans__bs4_acs_resnet18_encoder_all_second_attempt/fold_0/test"
+    test_output_folder = "/home/dtpthao/workspace/nnUNet/env/results/Dataset032_BraTS2018/nnUNetTrainer__nnUNetPlans__bs4_acs_resnet18_encoder_all_second_attempt/fold_0/test_brats_format"
     convert_labels_back_to_BraTS_2018_2019_convention(
         test_input_folder,
         test_output_folder

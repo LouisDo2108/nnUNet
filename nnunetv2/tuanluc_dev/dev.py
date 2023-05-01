@@ -26,7 +26,7 @@ def replace_nnunet_conv3d_with_acsconv_random(model, target_layer):
             setattr(model, n, ACSConv(module.in_channels, module.out_channels, module.kernel_size, module.stride, module.padding, module.dilation, module.groups))
 
 
-def get_acs_pretrained_weights(model_name='resnet18'):
+def get_acs_pretrained_weights(model_name='resnet18', pretrained=True):
     """
     Generate dictionaries of Conv2d and ACSConv layers for a given pre-trained model.
 
@@ -37,7 +37,16 @@ def get_acs_pretrained_weights(model_name='resnet18'):
         Tuple[Dict[str, List[nn.Conv2d]], Dict[str, List[ACSConv]]]: a tuple of dictionaries
             mapping from layer keys to lists of corresponding Conv2d and ACSConv layers
     """
-    model = timm.create_model(model_name, pretrained=True)
+    try:
+        if isinstance(model_name, str):
+            model = timm.create_model(model_name, pretrained=pretrained)
+            print(f'Loaded model {model_name} from timm library')
+        else:
+            model = model_name
+            print('Loaded model from input')
+    except Exception as e:
+        print('Error loading model')
+        raise e
     
     conv2d_dict = defaultdict(list)
     acsconv_dict = defaultdict(list)
@@ -173,5 +182,11 @@ def replace_nnunet_encoder_conv3d_with_acs_pretrained_all(encoder, acsconv_dict)
 if __name__ == '__main__':
 
     # conv2d_dict, acsconv_dict = get_acs_pretrained_weights(model_name='resnet18')
+    # from nnunetv2.tuanluc_dev.network_initialization import load_resnet18_custom_encoder
+    # pretrained_resnet18_path = "/home/dtpthao/workspace/nnUNet/nnunetv2/tuanluc_dev/results/resnet18_brats_imagenet_encoder/checkpoints/model_10.pt"
+    # model_name = load_resnet18_custom_encoder(pretrained_resnet18_path)
+    # print(model_name)
+    # _, acsconv_dict = get_acs_pretrained_weights(model_name=model_name)
+    # pprint(acsconv_dict)
     nnunet_trainer, _ = get_encoder()
     print(nnunet_trainer.network)

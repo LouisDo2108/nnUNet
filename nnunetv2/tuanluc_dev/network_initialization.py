@@ -9,6 +9,7 @@ from dynamic_network_architectures.building_blocks.simple_conv_blocks import Sta
 import timm
 from collections import defaultdict
 from natsort import natsorted
+from nnunetv2.tuanluc_dev.encoder import ImageNetBratsClassifier
 
 class InitWeights_He(object):
     def __init__(self, neg_slope=1e-2):
@@ -42,7 +43,14 @@ def replace_nnunet_conv3d_with_acsconv_random(model, target_layer):
             setattr(model, n, ACSConv(module.in_channels, module.out_channels, module.kernel_size, module.stride, module.padding, module.dilation, module.groups))
 
 
-def get_acs_pretrained_weights(model_name='resnet18'):
+def load_resnet18_custom_encoder(pretrained_model_path):
+    model = ImageNetBratsClassifier(num_classes=2)
+    model.load_state_dict(torch.load(pretrained_model_path, map_location=torch.device('cpu')), strict=False)
+    print("Loaded pretrained model from {}".format(pretrained_model_path))
+    return model.encoder
+
+
+def get_acs_pretrained_weights(model_name='resnet18', pretrained=True):
     """
     Generate dictionaries of Conv2d and ACSConv layers for a given pre-trained model.
 
@@ -53,7 +61,16 @@ def get_acs_pretrained_weights(model_name='resnet18'):
         Tuple[Dict[str, List[nn.Conv2d]], Dict[str, List[ACSConv]]]: a tuple of dictionaries
             mapping from layer keys to lists of corresponding Conv2d and ACSConv layers
     """
-    model = timm.create_model(model_name, pretrained=True)
+    try:
+        if isinstance(model_name, str):
+            model = timm.create_model(model_name, pretrained=pretrained)
+            print(f'Loaded model {model_name} from timm library')
+        else:
+            model = model_name
+            print('Loaded model from input')
+    except Exception as e:
+        print('Error loading model')
+        raise e
     
     conv2d_dict = defaultdict(list)
     acsconv_dict = defaultdict(list)
