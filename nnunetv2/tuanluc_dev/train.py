@@ -13,8 +13,9 @@ import torch.nn.functional as F
 from torch.optim.lr_scheduler import _LRScheduler
 from torchsummary import summary
 
-from nnunetv2.tuanluc_dev.dataloaders import get_dataloader
-from nnunetv2.tuanluc_dev.encoder import HGGLGGClassifier
+from nnunetv2.tuanluc_dev.dataloaders import get_BRATSDataset_dataloader, get_ImageNetBRATSDataset_dataloader
+from nnunetv2.tuanluc_dev.encoder import HGGLGGClassifier, ImageNetBratsClassifier
+from nnunetv2.tuanluc_dev.utils import *
 from sklearn.metrics import accuracy_score, precision_score, recall_score, f1_score, roc_auc_score
 import matplotlib.pyplot as plt
 
@@ -156,9 +157,8 @@ def log_metrics(output_folder, epoch, loss, predictions, true_labels, train=Fals
         f.write('{:<10} ROC AUC Score: {:.4f}\n'.format(train_val, roc_auc))
 
 
-if __name__ == '__main__':
-    
-    train_loader, val_loader = get_dataloader(
+def train_hgg_lgg_classifier():
+    train_loader, val_loader = get_BRATSDataset_dataloader(
         root_dir='/home/dtpthao/workspace/brats_projects/datasets/BraTS_2018/train',
         batch_size=4, num_workers=1)
     
@@ -166,5 +166,22 @@ if __name__ == '__main__':
     # summary(model, (4, 128, 128, 128))
 
     train(model, train_loader, val_loader, 
-          output_folder="/home/dtpthao/workspace/nnUNet/nnunetv2/tuanluc_dev/results/hgg_lgg", 
+          output_folder="/home/dtpthao/workspace/nnUNet/nnunetv2/tuanluc_dev/results/resnet18_brats_imagenet_encoder", 
           num_epochs=100, learning_rate=0.001)
+    
+    
+def train_imagenet_brats_resnet18_encoder():
+    train_loader, val_loader = get_ImageNetBRATSDataset_dataloader(
+        batch_size=256, num_workers=8
+    )
+    
+    model = ImageNetBratsClassifier(num_classes=2)
+    # summary(model, (3, 224, 224))
+
+    train(model, train_loader, val_loader, 
+          output_folder="/home/dtpthao/workspace/nnUNet/nnunetv2/tuanluc_dev/results/resnet18_brats_imagenet_encoder", 
+          num_epochs=100, learning_rate=0.001)
+
+if __name__ == '__main__':
+    train_imagenet_brats_resnet18_encoder()
+    

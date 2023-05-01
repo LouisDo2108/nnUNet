@@ -2,6 +2,7 @@ from dynamic_network_architectures.building_blocks.plain_conv_encoder import Pla
 from nnunetv2.utilities.network_initialization import InitWeights_He
 import torch 
 import torch.nn as nn
+from nnunetv2.tuanluc_dev.utils import *
 
 
 class InitWeights_He(object):
@@ -54,6 +55,28 @@ class HGGLGGClassifier(nn.Module):
         x = self.classifier(x)
         return x
         
+
+class ImageNetBratsClassifier(nn.Module):
+    def __init__(self, num_classes, dropout_rate=0.5, return_skips=False):
+        super(ImageNetBratsClassifier, self).__init__()
+        # self.encoder = PlainConvEncoder(**encoder_params)
+        self.encoder, _ = get_model_and_transform("resnet18", pretrained=True)
+        self.encoder.fc = nn.Identity()
+        self.classifier = nn.Sequential(
+            nn.Dropout(dropout_rate),
+            nn.Linear(512, 256),
+            nn.BatchNorm1d(256),
+            nn.LeakyReLU(inplace=True),
+            nn.Dropout(dropout_rate),
+            nn.Linear(256, num_classes-1),
+        )
+        
+        
+    def forward(self, x):
+        x = self.encoder(x)
+        x = self.classifier(x)
+        return x
+
 
 # if __name__ == "__main__":
     

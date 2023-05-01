@@ -1,18 +1,24 @@
+import os
+from pprint import pprint
+from tqdm import tqdm
+from natsort import natsorted
 import torch
-from torch.utils.data import Dataset, DataLoader, Sampler
-import nibabel as nib
+import torch.nn as nn
+import numpy as np
 from pathlib import Path
 import json
-from sklearn.model_selection import StratifiedKFold
+from PIL import Image
 
-import random
-import numpy as np
+from torch.utils.data import Dataset, DataLoader
+from sklearn.model_selection import StratifiedKFold
+from torchvision.transforms import Grayscale
 
 from nnunetv2.training.data_augmentation.compute_initial_patch_size import get_patch_size
 from nnunetv2.configuration import ANISO_THRESHOLD, default_num_processes
-from nnunetv2.training.dataloading.data_loader_3d import nnUNetDataLoader3D
-
+from nnunetv2.tuanluc_dev.utils import *
 import monai.transforms as mt
+import cv2
+# from torchvision import 
 
 # patch_size = [
 #     128,
@@ -33,17 +39,7 @@ import monai.transforms as mt
 #                                             (0.85, 1.25))
 # need_to_pad = (np.array(initial_patch_size) - np.array(patch_size)).astype(int)
 # oversample_foreground_percent = 0.33
-
-
-def set_seed(seed):
-    # Set the seed for all random number generators
-    random.seed(seed)
-    np.random.seed(seed)
-    torch.manual_seed(seed)
-    torch.cuda.manual_seed(seed)
-    torch.backends.cudnn.deterministic = True
-    torch.backends.cudnn.benchmark = False
-
+    
 
 class BRATSDataset(Dataset):
     def __init__(self, root_dir, train, train_transform=None, val_transform=None, fold=0):
@@ -124,8 +120,8 @@ class StratifiedBatchSampler:
         # return len(self.y)
         return self.n_batches
 
-        
-def get_dataloader(root_dir, batch_size, num_workers):
+      
+def get_BRATSDataset_dataloader(root_dir, batch_size, num_workers):
     
     train_transform = mt.Compose(
         [
@@ -149,17 +145,137 @@ def get_dataloader(root_dir, batch_size, num_workers):
     return train_loader, val_loader
 
 
+def slice_brats_utils(npy, filename, resize_transform, save_dir=None, save=False):
+    npy = resize_transform(npy).numpy()
+    map_modalities_dict = {0: "flair", 1: "t1", 2: "t1ce", 3: "t2"} # who knows the order?
+    map_plans_dict = {0: "axial", 1: "coronal", 2: "sagittal"}
+    
+    for modalities_ix, modalities in enumerate(npy):
+        for k in range(7, 128-8, 8):
+            slices = get_slices_from_each_plan(modalities, k)
+            if save:
+                for plans_ix, slice in enumerate(slices):
+                    if isinstance(slice, np.ndarray):
+                        save_name = os.path.join(save_dir, f"{filename}_{map_modalities_dict[modalities_ix]}_{map_plans_dict[plans_ix]}_{k}.jpg")
+                        cv2.imwrite(save_name, slice)
+                        print(f"Saved {save_name}")
+                    else:
+                        print("found None slice")
+                    
+
+def normalize(img):
+    img = img.astype(np.float32)
+    img -= img.min()
+    img /= img.max()
+    return img
+
+
+def get_slices_from_each_plan(modalities, k):
+    slice_a = modalities[k, :, :]
+    slice_c = modalities[:, k, :]
+    slice_s = modalities[:, :, k]
+    slices = [slice_a, slice_c, slice_s]
+    
+    for i in range(len(slices)):
+        slices[i] = normalize(slices[i])
+        slices[i] *= -255.0
+        slices[i] = slices[i].astype(np.uint8)
+
+    return slices
+
+
+@timing
+def slice_brats(
+    brats_dir="/tmp/htluc/nnunet/nnUNet_preprocessed/Dataset032_BraTS2018/nnUNetPlans_3d_fullres", 
+    save_dir="/home/dtpthao/workspace/nnUNet/nnunetv2/tuanluc_dev/brats_slices",
+    save=False):
+    """
+    Loop through all the npy files in the brats_dir and save the slices in another directory
+    """
+    brats_dir = Path(brats_dir)
+    dataset_json = "/home/dtpthao/workspace/nnUNet/env/preprocessed/Dataset032_BraTS2018/splits_final.json"
+    with open(dataset_json, 'r') as f:
+        js = json.load(f)
+    js = js[0]
+    
+    resize_transform = mt.Resize((128, 128, 128), size_mode='all', mode="trilinear")
+    
+    for k, v in js.items():
+        _save_dir = Path(save_dir) / k
+        _save_dir.mkdir(parents=True, exist_ok=True)
+        for f in v:
+            filename = brats_dir / f"{f}.npy" 
+            print(filename, Path.is_file(filename))
+            npy = np.load(filename)
+            slice_brats_utils(npy, f, resize_transform, save_dir=_save_dir, save=save)
+
+
+class ImageNetBRATSDataset(Dataset):
+    def __init__(self, imagenet_json_path, brats_dir, train=True, train_transform=None, val_transform=None):
+        with open(imagenet_json_path, 'r') as f:
+            self.imagenet_json = json.load(f)['train' if train else 'val']
+        self.brats_dir = Path(brats_dir) / 'train' if train else Path(brats_dir) / 'val'
+        self.train = train
+        self.train_transform = train_transform
+        self.val_transform = val_transform
+        self.paths = self.imagenet_json + [x.resolve() for x in self.brats_dir.iterdir()]
+        self.labels = np.concatenate([np.zeros(len(self.imagenet_json)), np.ones(len(self.paths) - len(self.imagenet_json))])
+        self.grayscale = Grayscale(num_output_channels=3)
+
+    def __len__(self):
+        return len(self.paths)
+    
+    def __getitem__(self, idx):
+        img_path, label = self.paths[idx], self.labels[idx]
+        img = Image.open(img_path, mode='r').convert('RGB')
+        if self.train_transform:
+            img = self.train_transform(img)
+        if self.val_transform:
+            img = self.val_transform(img)
+        img = self.grayscale(img)
+        return img, label
+
+
+def get_ImageNetBRATSDataset_dataloader(batch_size, num_workers):
+    
+    _, model_transform = get_model_and_transform("resnet18")
+    train_transform = model_transform
+    val_transform = model_transform
+    
+    brats_folder = "/home/dtpthao/workspace/nnUNet/nnunetv2/tuanluc_dev/brats_slices"
+    imagenet_json_path = "/home/dtpthao/workspace/nnUNet/nnunetv2/tuanluc_dev/imagenet_fold_0.json"
+    
+    train_dataset = ImageNetBRATSDataset(imagenet_json_path=imagenet_json_path, brats_dir=brats_folder, train=True, train_transform=train_transform)
+    val_dataset = ImageNetBRATSDataset(imagenet_json_path=imagenet_json_path, brats_dir=brats_folder, train=False, val_transform=val_transform)
+    
+    # return train_dataset, val_dataset
+    # train_loader = DataLoader(train_dataset, batch_size=batch_size, shuffle=True, num_workers=num_workers)
+    # val_loader = DataLoader(val_dataset, batch_size=batch_size, shuffle=False, num_workers=num_workers)
+    sampler = StratifiedBatchSampler(train_dataset.labels, batch_size)
+    train_loader = DataLoader(train_dataset, batch_sampler=sampler, num_workers=num_workers)
+    val_loader = DataLoader(val_dataset, batch_size=batch_size, shuffle=False, num_workers=num_workers)
+    
+    return train_loader, val_loader
+
+
 if __name__ == '__main__':
     set_seed(42)
-    train_loader, val_loader = get_dataloader(
-        root_dir='/home/dtpthao/workspace/brats_projects/datasets/BraTS_2018/train',
-        batch_size=4, num_workers=1)
-    print(len(train_loader))
-    print(len(val_loader))
-    # for data, target in train_loader:
-    #     print(target)
-    #     break
+    # train_loader, val_loader = get_dataloader(
+    #     root_dir='/home/dtpthao/workspace/brats_projects/datasets/BraTS_2018/train',
+    #     batch_size=4, num_workers=1
+    # )
+    train_loader, val_loader = get_ImageNetBRATSDataset_dataloader(
+        batch_size=4, num_workers=1
+    )
     
-    # for data, label in val_loader:
-    #     print(data.shape, label.shape)
-    #     break
+    for data, label in train_loader:
+        print(data.shape, label.shape)
+        print(label)
+        # cv2.imwrite("/home/dtpthao/workspace/nnUNet/nnunetv2/tuanluc_dev/1.jpg", data.numpy()[0].transpose(1, 2, 0).astype(np.uint8))
+        break
+    
+    for data, label in val_loader:
+        print(data.shape, label.shape)
+        # cv2.imwrite("/home/dtpthao/workspace/nnUNet/nnunetv2/tuanluc_dev/2.jpg", data.numpy()[0].transpose(1, 2, 0).astype(np.uint8))
+        break 
+    # slice_brats(save=True)

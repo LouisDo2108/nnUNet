@@ -9,7 +9,6 @@ from dynamic_network_architectures.building_blocks.simple_conv_blocks import Sta
 import timm
 from collections import defaultdict
 from natsort import natsorted
-# from nnunetv2.tuanluc_dev.get_network_from_plans import get_encoder
 
 class InitWeights_He(object):
     def __init__(self, neg_slope=1e-2):
@@ -60,7 +59,7 @@ def get_acs_pretrained_weights(model_name='resnet18'):
     acsconv_dict = defaultdict(list)
     
     for name, module in model.named_modules():
-        if isinstance(module, nn.Conv2d) and len(name.split('.')) == 3:
+        if isinstance(module, nn.Conv2d) and len(name.split('.')) == 3 and module.kernel_size[0] == 3:
             # parse out the input and output channels, layer number, and index
             layer_name = name.split('.')[0]
             conv_params = module.weight.shape
@@ -141,6 +140,7 @@ def replace_nnunet_encoder_conv3d_with_acs_pretrained_all(encoder, acsconv_dict)
     """
     stacked_conv_blocks = [k for k, m in encoder.named_modules(remove_duplicate=False) \
                            if isinstance(m, StackedConvBlocks) and not "decoder" in k]
+    less_than_64_acsconv_index = 0
     same_320_acsconv_index = 0
     
     for parent in stacked_conv_blocks:
@@ -150,17 +150,22 @@ def replace_nnunet_encoder_conv3d_with_acs_pretrained_all(encoder, acsconv_dict)
             module = conv_blocks.get_submodule(name).conv
             input_channels, output_channels = module.weight.shape[1], module.weight.shape[0]
             desired_pretrained_acsconv_key = f"{input_channels}_{output_channels}"
-            
+                      
             if input_channels == output_channels:
                 if input_channels == 320:
                     acsconv_index = same_320_acsconv_index
+                    same_320_acsconv_index += 1
                     stride = 1 if ix % 2 == 1 else 2
                 else:
-                    acsconv_index = 0
+                    acsconv_index = -1
                     stride = 1
             else:
-                acsconv_index = -1
+                acsconv_index = 0
                 stride = 2 if output_channels > 32 else 1
+                
+            if output_channels <= 64:
+                acsconv_index = less_than_64_acsconv_index
+                less_than_64_acsconv_index += 1
                 
             for i, (k, v) in enumerate(natsorted(acsconv_dict.items())):
                 pretrained_input_channels, pretrained_output_channels = [int(x) for x in k.split('_')[-2:]]
@@ -174,9 +179,6 @@ def replace_nnunet_encoder_conv3d_with_acs_pretrained_all(encoder, acsconv_dict)
                     print("Trying to get the next larger pretrained acsconv layer and somehow init it")
                         
                     next_layer_acsconv, new_acsconv = create_new_acsconv_from_next_layer_acsconv(acsconv_dict, input_channels, output_channels, acsconv_index, stride, i)
-                    if input_channels == 320:
-                        same_320_acsconv_index += 1
-                    
                     replace_conv_with_acsconv(conv_dropout_norm_relu, new_acsconv, next_layer_acsconv.weight.shape[1], next_layer_acsconv.weight.shape[0], stride, acsconv_index)
                     break
     del acsconv_dict
