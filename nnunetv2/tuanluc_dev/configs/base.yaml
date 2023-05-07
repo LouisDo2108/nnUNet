@@ -1,0 +1,9 @@
+# a base YAML configuration file for the custom nnUNet pretrained
+# Author: LouisDo2108
+# Date: May 7, 2023
+
+acsconv: True
+conv_pretrained: /home/dtpthao/workspace/nnUNet/nnunetv2/tuanluc_dev/results/hgg_lgg/checkpoints/model_55.pt #null  # HGG/LGG pretrained
+acs_pretrained: resnet18
+replace_all: True  # Which mode to choose, all or not all
+nnUNet_init: True

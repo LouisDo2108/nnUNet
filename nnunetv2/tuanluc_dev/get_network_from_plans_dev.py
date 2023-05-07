@@ -20,6 +20,10 @@ from nnunetv2.training.nnUNetTrainer.nnUNetTrainer import nnUNetTrainer
 from nnunetv2.utilities.dataset_name_id_conversion import maybe_convert_to_dataset_name
 from nnunetv2.utilities.find_class_by_name import recursive_find_python_class
 from batchgenerators.utilities.file_and_folder_operations import join, isfile, load_json
+from nnunetv2.tuanluc_dev.get_network_from_plans import get_network_from_plans
+import yaml
+from pprint import pprint
+from pathlib import Path
 
 
 def get_trainer_from_args(dataset_name_or_id: Union[int, str],
@@ -28,7 +32,8 @@ def get_trainer_from_args(dataset_name_or_id: Union[int, str],
                           trainer_name: str = 'nnUNetTrainer',
                           plans_identifier: str = 'nnUNetPlans',
                           use_compressed: bool = False,
-                          device: torch.device = torch.device('cuda')):
+                          device: torch.device = torch.device('cuda'),
+                          custom_network_config_path: str = None,):
     # load nnunet class and do sanity checks
     nnunet_trainer = recursive_find_python_class(join(nnunetv2.__path__[0], "training", "nnUNetTrainer"),
                                                 trainer_name, 'nnunetv2.training.nnUNetTrainer')
@@ -57,7 +62,8 @@ def get_trainer_from_args(dataset_name_or_id: Union[int, str],
     plans = load_json(plans_file)
     dataset_json = load_json(join(preprocessed_dataset_folder_base, 'dataset.json'))
     nnunet_trainer = nnunet_trainer(plans=plans, configuration=configuration, fold=fold,
-                                    dataset_json=dataset_json, unpack_dataset=not use_compressed, device=device)
+                                    dataset_json=dataset_json, unpack_dataset=not use_compressed, device=device,
+                                    custom_network_config_path=custom_network_config_path)
     return nnunet_trainer
 
 
@@ -65,7 +71,8 @@ def build_network_architecture(plans_manager: PlansManager,
                                 dataset_json,
                                 configuration_manager: ConfigurationManager,
                                 num_input_channels,
-                                enable_deep_supervision: bool = True) -> nn.Module:
+                                enable_deep_supervision: bool = True,
+                                custom_network_config_path: str = None) -> nn.Module:
     """
     his is where you build the architecture according to the plans. There is no obligation to use
     get_network_from_plans, this is just a utility we use for the nnU-Net default architectures. You can do what
@@ -85,81 +92,10 @@ def build_network_architecture(plans_manager: PlansManager,
     should be generated. label_manager takes care of all that for you.)
 
     """
+
     return get_network_from_plans(plans_manager, dataset_json, configuration_manager,
-                                    num_input_channels, deep_supervision=enable_deep_supervision)
-
-
-def get_network_from_plans(plans_manager: PlansManager,
-                           dataset_json: dict,
-                           configuration_manager: ConfigurationManager,
-                           num_input_channels: int,
-                           deep_supervision: bool = True):
-    """
-    we may have to change this in the future to accommodate other plans -> network mappings
-
-    num_input_channels can differ depending on whether we do cascade. Its best to make this info available in the
-    trainer rather than inferring it again from the plans here.
-    """
-    num_stages = len(configuration_manager.conv_kernel_sizes)
-
-    dim = len(configuration_manager.conv_kernel_sizes[0])
-    conv_op = convert_dim_to_conv_op(dim)
-
-    label_manager = plans_manager.get_label_manager(dataset_json)
-
-    segmentation_network_class_name = configuration_manager.UNet_class_name
-    mapping = {
-        'PlainConvUNet': PlainConvUNet,
-        'ResidualEncoderUNet': ResidualEncoderUNet
-    }
-    kwargs = {
-        'PlainConvUNet': {
-            'conv_bias': True,
-            'norm_op': get_matching_instancenorm(conv_op),
-            'norm_op_kwargs': {'eps': 1e-5, 'affine': True},
-            'dropout_op': None, 'dropout_op_kwargs': None,
-            'nonlin': nn.LeakyReLU, 'nonlin_kwargs': {'inplace': True},
-        },
-        'ResidualEncoderUNet': {
-            'conv_bias': True,
-            'norm_op': get_matching_instancenorm(conv_op),
-            'norm_op_kwargs': {'eps': 1e-5, 'affine': True},
-            'dropout_op': None, 'dropout_op_kwargs': None,
-            'nonlin': nn.LeakyReLU, 'nonlin_kwargs': {'inplace': True},
-        }
-    }
-    assert segmentation_network_class_name in mapping.keys(), 'The network architecture specified by the plans file ' \
-                                                              'is non-standard (maybe your own?). Yo\'ll have to dive ' \
-                                                              'into either this ' \
-                                                              'function (get_network_from_plans) or ' \
-                                                              'the init of your nnUNetModule to accomodate that.'
-    network_class = mapping[segmentation_network_class_name]
-
-    conv_or_blocks_per_stage = {
-        'n_conv_per_stage'
-        if network_class != ResidualEncoderUNet else 'n_blocks_per_stage': configuration_manager.n_conv_per_stage_encoder,
-        'n_conv_per_stage_decoder': configuration_manager.n_conv_per_stage_decoder
-    }
-    # network class name!!
-    model = network_class(
-        input_channels=num_input_channels,
-        n_stages=num_stages,
-        features_per_stage=[min(configuration_manager.UNet_base_num_features * 2 ** i,
-                                configuration_manager.unet_max_num_features) for i in range(num_stages)],
-        conv_op=conv_op,
-        kernel_sizes=configuration_manager.conv_kernel_sizes,
-        strides=configuration_manager.pool_op_kernel_sizes,
-        num_classes=label_manager.num_segmentation_heads,
-        deep_supervision=deep_supervision,
-        **conv_or_blocks_per_stage,
-        **kwargs[segmentation_network_class_name]
-    )
-    model.apply(InitWeights_He(1e-2))
-    if network_class == ResidualEncoderUNet:
-        model.apply(init_last_bn_before_add_to_0)
-
-    model.encoder.return_skips = False
-    return model.encoder
+                                      num_input_channels, deep_supervision=enable_deep_supervision, 
+                                      custom_network_config_path=custom_network_config_path)
 
 
 def get_encoder():
@@ -171,13 +107,15 @@ def get_encoder():
     configuration_manager = nnunet_trainer.configuration_manager
     dataset_json = nnunet_trainer.dataset_json
     device = nnunet_trainer.device
+    custom_network_config_path = nnunet_trainer.custom_network_config_path
     
-    ### Getting the encoder only
-    network = build_network_architecture(plans_manager, dataset_json,
-                                                    configuration_manager,
-                                                    num_input_channels,
-                                                    enable_deep_supervision=True)
-    return nnunet_trainer, network
+    # ### Getting the encoder only
+    # network = build_network_architecture(plans_manager, dataset_json,
+    #                                                 configuration_manager,
+    #                                                 num_input_channels,
+    #                                                 enable_deep_supervision=True,
+    #                                                 custom_network_config_path=custom_network_config_path)
+    return nnunet_trainer
 
 
 def entry():
@@ -216,6 +154,8 @@ def entry():
                     help="Use this to set the device the training should run with. Available options are 'cuda' "
                          "(GPU), 'cpu' (CPU) and 'mps' (Apple M1/M2). Do NOT use this to set which GPU ID! "
                          "Use CUDA_VISIBLE_DEVICES=X nnUNetv2_train [...] instead!")
+    parser.add_argument('-custom_cfg_path', type=str, default=None, required=False,
+                        help='[OPTIONAL] Custom network configuration YAML file path. If not specified, the default is None.')
     args = parser.parse_args()
 
     assert args.device in ['cpu', 'cuda', 'mps'], f'-device must be either cpu, mps or cuda. Other devices are not tested/supported. Got: {args.device}.'
@@ -234,22 +174,11 @@ def entry():
     
     use_compressed_data = False
     nnunet_trainer = get_trainer_from_args(args.dataset_name_or_id, args.configuration, args.fold, args.tr,
-                                           args.p, use_compressed_data, device=device)
+                                           args.p, use_compressed_data, device=device, 
+                                           custom_network_config_path=args.custom_cfg_path)
     
     return nnunet_trainer
 
 
 if __name__ == '__main__':
     pass
-    # encoder = get_encoder()
-    # print("conv_op", encoder.conv_op)
-    # print("kernel_sizes", encoder.kernel_sizes)
-    # print("strides", encoder.strides)
-    # print("conv_bias", encoder.conv_bias)
-    # print("norm_op", encoder.norm_op)
-    # print("norm_op_kwargs", encoder.norm_op_kwargs)
-    # print("dropout_op", encoder.dropout_op)
-    # print("dropout_op_kwargs", encoder.dropout_op_kwargs)
-    # print("nonlin", encoder.nonlin)
-    # print("nonlin_kwargs", encoder.nonlin_kwargs)
-    # print("return_skips", encoder.return_skips)

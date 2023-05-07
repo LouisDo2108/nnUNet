@@ -14,12 +14,16 @@ from nnunetv2.tuanluc_dev.network_initialization import (
 )
 from pprint import pprint
 from pathlib import Path
+import yaml
+from nnunetv2.run.run_training import run_training_entry
+
 
 def get_network_from_plans(plans_manager: PlansManager,
                            dataset_json: dict,
                            configuration_manager: ConfigurationManager,
                            num_input_channels: int,
-                           deep_supervision: bool = True):
+                           deep_supervision: bool = True,
+                           custom_network_config_path: str = None,):
     """
     we may have to change this in the future to accommodate other plans -> network mappings
 
@@ -92,15 +96,10 @@ def get_network_from_plans(plans_manager: PlansManager,
     #     "nnUNet_init": True,
     # }
     # "/home/dtpthao/workspace/nnUNet/nnunetv2/tuanluc_dev/results/resnet18_brats_imagenet_encoder/checkpoints/model_10.pt"
-    custom_network_config = {
-        "acsconv": True,
-        "conv_pretrained": "/home/dtpthao/workspace/nnUNet/nnunetv2/tuanluc_dev/results/hgg_lgg/checkpoints/model_55.pt", # HGG/LGG pretrained
-        "acs_pretrained": "resnet18",
-        "replace_all": False,
-        "nnUNet_init": False,
-    }
     
     print("---------- Custom network config ----------")
+    with open(custom_network_config_path, "r") as f:
+        custom_network_config = yaml.safe_load(f)
     pprint(custom_network_config)
     print("--------------------------------------------------\n\n")
     
@@ -183,7 +182,7 @@ def get_network_from_plans(plans_manager: PlansManager,
             print("Successfully init with nnUNet init")
         else:
             print("Successfully init with ACSConv default init")
-    else:
+    elif custom_network_config["conv_pretrained"] is not None:
         """
         Normal Conv3D nnUNet
         Can load custom pretrained encoder using "conv_pretrained" key
@@ -199,7 +198,7 @@ def get_network_from_plans(plans_manager: PlansManager,
                 nnunet_model=model, 
                 pretrained_model_path=conv_pretrained
             )
-            print("Successfully init weights from pretrained encoder")
+            print("Successfully init weights from pretrained encoder from \n", conv_pretrained)
             print("Conv3D nnUNet is already init with nnUNet init") 
         except Exception as e:
             print("Failed to init weights from pretrained encoder")

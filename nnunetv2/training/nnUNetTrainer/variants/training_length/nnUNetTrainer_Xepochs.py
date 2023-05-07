@@ -78,17 +78,27 @@ class nnUNetTrainer_8000epochs(nnUNetTrainer):
 
 from nnunetv2.utilities.plans_handling.plans_handler import PlansManager, ConfigurationManager
 import torch.nn as nn
-class nnUNetTrainer_50epochs_tuanluc(nnUNetTrainer_50epochs):
+
+class nnUNetTrainer_50epochs_tuanluc(nnUNetTrainer):
     def __init__(self, plans: dict, configuration: str, fold: int, dataset_json: dict, unpack_dataset: bool = True,
-                 device: torch.device = torch.device('cuda')):
-        super().__init__(plans, configuration, fold, dataset_json, unpack_dataset, device)
+                 device: torch.device = torch.device('cuda'), **kwargs):
+        super().__init__(plans, configuration, fold, dataset_json, unpack_dataset, device, **kwargs)
+        self.__dict__.update(kwargs)
+        self.num_epochs = 50
+        self.custom_network_config_path = kwargs.get("custom_network_config_path")
         
-    @staticmethod
-    def build_network_architecture(plans_manager: PlansManager,
+        print("custom_network_config_path")
+        print(self.custom_network_config_path)
+        
+    # @staticmethod
+    def build_network_architecture(self,
+                                   plans_manager: PlansManager,
                                    dataset_json,
                                    configuration_manager: ConfigurationManager,
                                    num_input_channels,
-                                   enable_deep_supervision: bool = True) -> nn.Module:
+                                   enable_deep_supervision: bool = True,
+                                   custom_network_config_path: str = None
+                                   ) -> nn.Module:
         """
         his is where you build the architecture according to the plans. There is no obligation to use
         get_network_from_plans, this is just a utility we use for the nnU-Net default architectures. You can do what
@@ -110,4 +120,5 @@ class nnUNetTrainer_50epochs_tuanluc(nnUNetTrainer_50epochs):
         """
         from nnunetv2.tuanluc_dev.get_network_from_plans import get_network_from_plans
         return get_network_from_plans(plans_manager, dataset_json, configuration_manager,
-                                      num_input_channels, deep_supervision=enable_deep_supervision)
+                                      num_input_channels, deep_supervision=enable_deep_supervision, 
+                                      custom_network_config_path=self.custom_network_config_path)

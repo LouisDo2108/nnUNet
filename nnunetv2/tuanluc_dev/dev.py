@@ -188,5 +188,5 @@ if __name__ == '__main__':
     # print(model_name)
     # _, acsconv_dict = get_acs_pretrained_weights(model_name=model_name)
     # pprint(acsconv_dict)
-    nnunet_trainer, _ = get_encoder()
-    # print(nnunet_trainer.network)
+    nnunet_trainer = get_encoder()
+    print(nnunet_trainer.network)
