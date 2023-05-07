@@ -2,12 +2,14 @@ import multiprocessing
 import shutil
 from multiprocessing.pool import Pool
 
+import os
 import SimpleITK as sitk
 import numpy as np
 from batchgenerators.utilities.file_and_folder_operations import *
 from nnunetv2.dataset_conversion.generate_dataset_json import generate_dataset_json
 from nnunetv2.paths import nnUNet_raw
 
+import argparse
 
 def copy_BraTS_segmentation_and_convert_labels_to_nnUNet(in_file: str, out_file: str) -> None:
     # use this for segmentation only!!!
@@ -65,6 +67,12 @@ if __name__ == "__main__":
     """
     REMEMBER TO CONVERT LABELS BACK TO BRATS CONVENTION AFTER PREDICTION!
     """
+    
+    parser = argparse.ArgumentParser()
+    parser.add_argument('--exp-name', type=str, help='The name of experiment')
+    parser.add_argument('--train_test', type=str, help='Train or test')
+    parser.add_argument('--root-dir', type=str, default="/home/dtpthao/workspace/nnUNet/env/results/Dataset032_BraTS2018/", help='Default folder to output result')
+    args = parser.parse_args()
     
     # # 1. Dataset conversion (Train + Test)
     # brats_data_dir_train = '/home/dtpthao/workspace/nnUNet/data/BraTS_2018/train'
@@ -130,8 +138,11 @@ if __name__ == "__main__":
     
     
     # # 2. After training and inference, convert the inference folder's .nii.gz file labels back to BraTS convention
-    test_input_folder = "/home/dtpthao/workspace/nnUNet/env/results/Dataset032_BraTS2018/nnUNetTrainer__nnUNetPlans__bs4_acs_resnet18_encoder_all_second_attempt/fold_0/test"
-    test_output_folder = "/home/dtpthao/workspace/nnUNet/env/results/Dataset032_BraTS2018/nnUNetTrainer__nnUNetPlans__bs4_acs_resnet18_encoder_all_second_attempt/fold_0/test_brats_format"
+    root_dir = "/home/dtpthao/workspace/nnUNet/env/results/Dataset032_BraTS2018/"
+    exp_name = args.exp_name
+    train_test = args.train_test
+    test_input_folder = os.path.join(root_dir, f"{exp_name}/fold_0/{train_test}")
+    test_output_folder = os.path.join(root_dir, f"{exp_name}/fold_0/{train_test}_brats_format")
     convert_labels_back_to_BraTS_2018_2019_convention(
         test_input_folder,
         test_output_folder
