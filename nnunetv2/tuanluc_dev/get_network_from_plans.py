@@ -101,12 +101,9 @@ def get_network_from_plans(plans_manager: PlansManager,
     try:
         print("Config file name:", Path(custom_network_config_path).name)
         custom_network_config = load_yaml_config_file(custom_network_config_path)
+        pprint(custom_network_config)
     except Exception as e:
         print(e)
-        
-    # with open(custom_network_config_path, "r") as f:
-    #     custom_network_config = yaml.safe_load(f)
-    pprint(custom_network_config)
     print("--------------------------------------------------\n")
     
     if custom_network_config["acsconv"]:

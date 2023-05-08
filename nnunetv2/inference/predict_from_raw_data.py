@@ -69,7 +69,7 @@ class PreprocessAdapter(DataLoader):
         return {'data': data, 'data_properites': data_properites, 'ofile': ofile}
 
 
-def load_what_we_need(model_training_output_dir, use_folds, checkpoint_name):
+def load_what_we_need(model_training_output_dir, use_folds, checkpoint_name, custom_network_config_path=None):
     # we could also load plans and dataset_json from the init arguments in the checkpoint. Not quite sure what is the
     # best method so we leave things as they are for the moment.
     dataset_json = load_json(join(model_training_output_dir, 'dataset.json'))
@@ -97,8 +97,15 @@ def load_what_we_need(model_training_output_dir, use_folds, checkpoint_name):
     num_input_channels = determine_num_input_channels(plans_manager, configuration_manager, dataset_json)
     trainer_class = recursive_find_python_class(join(nnunetv2.__path__[0], "training", "nnUNetTrainer"),
                                                 trainer_name, 'nnunetv2.training.nnUNetTrainer')
-    network = trainer_class.build_network_architecture(plans_manager, dataset_json, configuration_manager,
-                                                       num_input_channels, enable_deep_supervision=False)
+    # In an attempt to fix the @staticmethod issue
+    from nnunetv2.tuanluc_dev.get_network_from_plans import get_network_from_plans
+    network = get_network_from_plans(plans_manager, dataset_json, configuration_manager,
+                                     num_input_channels, deep_supervision=False, 
+                                     custom_network_config_path=custom_network_config_path)
+    
+    # network = trainer_class.build_network_architecture(plans_manager, dataset_json, configuration_manager, 
+    #                                                    num_input_channels, enable_deep_supervision=False)
+    # End of fix
     return parameters, configuration_manager, inference_allowed_mirroring_axes, plans_manager, dataset_json, network, trainer_name
 
 
@@ -129,7 +136,8 @@ def predict_from_raw_data(list_of_lists_or_source_folder: Union[str, List[List[s
                           folder_with_segs_from_prev_stage: str = None,
                           num_parts: int = 1,
                           part_id: int = 0,
-                          device: torch.device = torch.device('cuda')):
+                          device: torch.device = torch.device('cuda'),
+                          custom_network_config_path: str = None,):
     print("\n#######################################################################\nPlease cite the following paper "
           "when using nnU-Net:\n"
           "Isensee, F., Jaeger, P. F., Kohl, S. A., Petersen, J., & Maier-Hein, K. H. (2021). "
@@ -158,7 +166,7 @@ def predict_from_raw_data(list_of_lists_or_source_folder: Union[str, List[List[s
     # load all the stuff we need from the model_training_output_dir
     parameters, configuration_manager, inference_allowed_mirroring_axes, \
     plans_manager, dataset_json, network, trainer_name = \
-        load_what_we_need(model_training_output_dir, use_folds, checkpoint_name)
+        load_what_we_need(model_training_output_dir, use_folds, checkpoint_name, custom_network_config_path)
 
     # check if we need a prediction from the previous stage
     if configuration_manager.previous_stage_name is not None:
@@ -511,6 +519,8 @@ def predict_entry_point():
                         help="Use this to set the device the inference should run with. Available options are 'cuda' "
                              "(GPU), 'cpu' (CPU) and 'mps' (Apple M1/M2). Do NOT use this to set which GPU ID! "
                              "Use CUDA_VISIBLE_DEVICES=X nnUNetv2_predict [...] instead!")
+    parser.add_argument('-custom_cfg_path', type=str, default=None, required=False,
+                        help='[OPTIONAL] Custom network configuration YAML file path. If not specified, the default is None.')
 
     args = parser.parse_args()
     args.f = [i if i == 'all' else int(i) for i in args.f]
@@ -555,7 +565,8 @@ def predict_entry_point():
                           folder_with_segs_from_prev_stage=args.prev_stage_predictions,
                           num_parts=args.num_parts,
                           part_id=args.part_id,
-                          device=device)
+                          device=device,
+                          custom_network_config_path=args.custom_cfg_path)
 
 
 if __name__ == '__main__':

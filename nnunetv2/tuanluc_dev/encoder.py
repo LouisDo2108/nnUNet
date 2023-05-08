@@ -59,7 +59,6 @@ class HGGLGGClassifier(nn.Module):
 class ImageNetBratsClassifier(nn.Module):
     def __init__(self, num_classes, dropout_rate=0.5, return_skips=False):
         super(ImageNetBratsClassifier, self).__init__()
-        # self.encoder = PlainConvEncoder(**encoder_params)
         self.encoder, _ = get_model_and_transform("resnet18", pretrained=True)
         self.encoder.fc = nn.Identity()
         self.classifier = nn.Sequential(
