@@ -14,8 +14,8 @@ from nnunetv2.tuanluc_dev.network_initialization import (
 )
 from pprint import pprint
 from pathlib import Path
-import yaml
 from nnunetv2.run.run_training import run_training_entry
+from nnunetv2.tuanluc_dev.utils import *
 
 
 def get_network_from_plans(plans_manager: PlansManager,
@@ -98,10 +98,16 @@ def get_network_from_plans(plans_manager: PlansManager,
     # "/home/dtpthao/workspace/nnUNet/nnunetv2/tuanluc_dev/results/resnet18_brats_imagenet_encoder/checkpoints/model_10.pt"
     
     print("---------- Custom network config ----------")
-    with open(custom_network_config_path, "r") as f:
-        custom_network_config = yaml.safe_load(f)
+    try:
+        print("Config file name:", Path(custom_network_config_path).name)
+        custom_network_config = load_yaml_config_file(custom_network_config_path)
+    except Exception as e:
+        print(e)
+        
+    # with open(custom_network_config_path, "r") as f:
+    #     custom_network_config = yaml.safe_load(f)
     pprint(custom_network_config)
-    print("--------------------------------------------------\n\n")
+    print("--------------------------------------------------\n")
     
     if custom_network_config["acsconv"]:
         """
@@ -132,7 +138,7 @@ def get_network_from_plans(plans_manager: PlansManager,
                 _, acsconv_dict = get_acs_pretrained_weights(model_name=acs_pretrained)
             else:
                 _, acsconv_dict = get_acs_pretrained_weights(model_name=acs_pretrained)
-            print("Successfully loaded ACSConv pretrained weights as a dictionary")
+            print("Successfully loaded ACSConv pretrained weights as a dictionary\n")
         except Exception as e:
             print("Failed to load ACSConv pretrained weights as a dictionary")
             print("Error: ", e)
@@ -158,6 +164,7 @@ def get_network_from_plans(plans_manager: PlansManager,
                     print("Successfully init with nnUNet init")
                 else:
                     print("Successfully init with ACSConv default init")
+                print("--------------------------------------------------\n")
                 return model
             
             # From this point, we have pretrained weights that need further processing
@@ -204,7 +211,11 @@ def get_network_from_plans(plans_manager: PlansManager,
             print("Failed to init weights from pretrained encoder")
             print("Error: ", e)
             raise e
-    print("--------------------------------------------------\n\n")  
+    else:
+        print("---------- DEFAULT NNUNET ----------")
+        print("Do nothing")
+        
+    print("--------------------------------------------------\n")
     return model
     
     # ------------------ Custom network config ------------------

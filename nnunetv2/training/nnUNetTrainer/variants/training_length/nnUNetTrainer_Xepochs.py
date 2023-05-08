@@ -87,8 +87,6 @@ class nnUNetTrainer_50epochs_tuanluc(nnUNetTrainer):
         self.num_epochs = 50
         self.custom_network_config_path = kwargs.get("custom_network_config_path")
         
-        print("custom_network_config_path")
-        print(self.custom_network_config_path)
         
     # @staticmethod
     def build_network_architecture(self,

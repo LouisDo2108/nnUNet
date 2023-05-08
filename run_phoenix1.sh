@@ -28,7 +28,9 @@ name="bs4_acs_resnet18_encoder_3rd_attempt"
 # --verbose
 
 # 2. Train + Val fold 0
-# python run/run_training.py 032 $name 0 -num_gpus 1 -tr nnUNetTrainer_50epochs_tuanluc
+# python run/run_training.py 032 $name 0 -num_gpus 1 \
+# -tr nnUNetTrainer_50epochs_tuanluc \
+# -custom_cfg_path /home/dtpthao/workspace/nnUNet/nnunetv2/tuanluc_dev/configs/acsconv_random.yaml
 
 # (Optional) 2.1  find best config (Only viable after training all 5 folds)
 # python evaluation/find_best_configuration.py 032 -c 3d_fullres_bs4_batch_dice -f 0 --disable_ensembling

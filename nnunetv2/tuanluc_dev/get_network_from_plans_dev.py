@@ -4,12 +4,9 @@ from torch import nn
 from typing import Union, Optional
 
 import nnunetv2
+from pathlib import Path
+from nnunetv2.tuanluc_dev.utils import *
 
-from dynamic_network_architectures.architectures.unet import PlainConvUNet, ResidualEncoderUNet
-from dynamic_network_architectures.building_blocks.simple_conv_blocks import ConvDropoutNormReLU
-from dynamic_network_architectures.building_blocks.plain_conv_encoder import PlainConvEncoder
-from dynamic_network_architectures.building_blocks.helper import get_matching_instancenorm, convert_dim_to_conv_op
-from dynamic_network_architectures.initialization.weight_init import init_last_bn_before_add_to_0
 from nnunetv2.utilities.network_initialization import InitWeights_He
 from nnunetv2.utilities.label_handling.label_handling import determine_num_input_channels
 from nnunetv2.utilities.plans_handling.plans_handler import ConfigurationManager, PlansManager
@@ -21,9 +18,7 @@ from nnunetv2.utilities.dataset_name_id_conversion import maybe_convert_to_datas
 from nnunetv2.utilities.find_class_by_name import recursive_find_python_class
 from batchgenerators.utilities.file_and_folder_operations import join, isfile, load_json
 from nnunetv2.tuanluc_dev.get_network_from_plans import get_network_from_plans
-import yaml
-from pprint import pprint
-from pathlib import Path
+
 
 
 def get_trainer_from_args(dataset_name_or_id: Union[int, str],
@@ -102,12 +97,12 @@ def get_encoder():
     nnunet_trainer = entry()
     nnunet_trainer.initialize()
     
-    num_input_channels = nnunet_trainer.num_input_channels
-    plans_manager = nnunet_trainer.plans_manager
-    configuration_manager = nnunet_trainer.configuration_manager
-    dataset_json = nnunet_trainer.dataset_json
-    device = nnunet_trainer.device
-    custom_network_config_path = nnunet_trainer.custom_network_config_path
+    # num_input_channels = nnunet_trainer.num_input_channels
+    # plans_manager = nnunet_trainer.plans_manager
+    # configuration_manager = nnunet_trainer.configuration_manager
+    # dataset_json = nnunet_trainer.dataset_json
+    # device = nnunet_trainer.device
+    # custom_network_config_path = nnunet_trainer.custom_network_config_path
     
     # ### Getting the encoder only
     # network = build_network_architecture(plans_manager, dataset_json,
