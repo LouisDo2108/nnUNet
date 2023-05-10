@@ -71,6 +71,7 @@ def print_layers(model, target_layer):
     except Exception as e:
         print(e)
 
+
 def create_imagenet_val_json():
     import os
     import json

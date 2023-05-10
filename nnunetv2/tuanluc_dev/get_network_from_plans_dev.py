@@ -20,7 +20,6 @@ from batchgenerators.utilities.file_and_folder_operations import join, isfile, l
 from nnunetv2.tuanluc_dev.get_network_from_plans import get_network_from_plans
 
 
-
 def get_trainer_from_args(dataset_name_or_id: Union[int, str],
                           configuration: str,
                           fold: int,

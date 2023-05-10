@@ -143,7 +143,12 @@ if __name__ == "__main__":
     train_test = args.train_test
     test_input_folder = os.path.join(root_dir, f"{exp_name}/fold_0/{train_test}")
     test_output_folder = os.path.join(root_dir, f"{exp_name}/fold_0/{train_test}_brats_format")
+    
     convert_labels_back_to_BraTS_2018_2019_convention(
         test_input_folder,
         test_output_folder
     )
+    
+    print("Completed converting labels back to BraTS 2018/2019 convention")
+    print("Input folder: ", test_input_folder)
+    print("Output folder: ", test_output_folder)

@@ -1,15 +1,17 @@
-# import os
-# os.environ["CUDA_DEVICE_ORDER"] = "PCI_BUS_ID"
-# os.environ["CUDA_VISIBLE_DEVICES"] = "1"
 import torch
 from torch import nn
-from nnunetv2.tuanluc_dev.encoder import HGGLGGClassifier
-from nnunetv2.tuanluc_dev.acsconv.operators import ACSConv
-from dynamic_network_architectures.building_blocks.simple_conv_blocks import StackedConvBlocks
 import timm
+
 from collections import defaultdict
 from natsort import natsorted
-from nnunetv2.tuanluc_dev.encoder import ImageNetBratsClassifier
+
+import nnunetv2
+from nnunetv2.tuanluc_dev.utils import *
+from nnunetv2.tuanluc_dev.acsconv.operators import ACSConv
+from nnunetv2.utilities.find_class_by_name import recursive_find_python_class
+from batchgenerators.utilities.file_and_folder_operations import join, isfile, load_json
+from dynamic_network_architectures.building_blocks.simple_conv_blocks import StackedConvBlocks
+
 
 class InitWeights_He(object):
     def __init__(self, neg_slope=1e-2):
@@ -26,15 +28,48 @@ class InitWeights_He(object):
                 module.bias = nn.init.constant_(module.bias, 0)
 
 
-@torch.no_grad()
-def init_weights_from_pretrained(nnunet_model, pretrained_model_path):
-    pretrained_model = HGGLGGClassifier(4, 2, return_skips=True)
-    loaded = torch.load(pretrained_model_path, map_location=torch.device('cpu'))
-    pretrained_model.load_state_dict(loaded, strict=False)
+# def init_weights_from_pretrained(nnunet_model, pretrained_model_path):
+    
+#     classifier_class = recursive_find_python_class(join(nnunetv2.__path__[0], "tuanluc_dev"), "HGGLGGClassifier", "nnunetv2.tuanluc_dev")
+#     print("using recursive_find_python_class to find HGGLGGClassifier")
+    
+#     pretrained_model = classifier_class(4, 2, return_skips=True)
+#     loaded = torch.load(pretrained_model_path, map_location=torch.device('cpu'))
+#     pretrained_model.load_state_dict(loaded, strict=False)
+    
+#     del loaded
+#     pretrained_encoder = pretrained_model.encoder
+#     nnunet_model.encoder = pretrained_encoder.to(torch.device('cuda'))
+    
+#     return nnunet_model
+
+def init_weights_from_pretrained_proxy_task_encoder(nnunet_model, custom_network_config_path):
+    
+    custom_network_config = load_yaml_config_file(custom_network_config_path)
+    
+    try:
+        proxy_encoder_class = custom_network_config["proxy_encoder_class"]    
+        proxy_task_encoder_class = recursive_find_python_class(join(nnunetv2.__path__[0], "tuanluc_dev"), proxy_encoder_class, "nnunetv2.tuanluc_dev")
+    except Exception as e:
+        print("No such proxy encoder class:", proxy_encoder_class)
+        raise e
+    
+    try: 
+        proxy_encoder_pretrained_path = custom_network_config["proxy_encoder_pretrained"]
+        if proxy_encoder_class == "HGGLGGClassifier":
+            pretrained_model = proxy_task_encoder_class(4, 2, return_skips=True)
+        loaded = torch.load(proxy_encoder_pretrained_path, map_location=torch.device('cpu'))
+        pretrained_model.load_state_dict(loaded, strict=False)
+    except Exception as e:
+        print("No such pretrained proxy encoder path:", proxy_encoder_class)
+        raise e
+    
     del loaded
     pretrained_encoder = pretrained_model.encoder
     nnunet_model.encoder = pretrained_encoder.to(torch.device('cuda'))
-    return nnunet_model
+    
+    return nnunet_model, proxy_encoder_pretrained_path
+
 
 
 def replace_nnunet_conv3d_with_acsconv_random(model, target_layer):
@@ -48,6 +83,7 @@ def replace_nnunet_conv3d_with_acsconv_random(model, target_layer):
 
 
 def load_resnet18_custom_encoder(pretrained_model_path):
+    from nnunetv2.tuanluc_dev.encoder import ImageNetBratsClassifier
     model = ImageNetBratsClassifier(num_classes=2)
     model.load_state_dict(torch.load(pretrained_model_path, map_location=torch.device('cpu')), strict=False)
     print("Loaded pretrained model from {}".format(pretrained_model_path))
@@ -204,13 +240,3 @@ def replace_nnunet_encoder_conv3d_with_acs_pretrained_all(encoder, acsconv_dict)
                     break
     del acsconv_dict
     return encoder
-
-
-if __name__ == "__main__":
-    pass
-    # nnunet_trainer = get_encoder()
-    # nnunet_trainer = init_weights_from_pretrained(
-    #     nnunet_trainer, 
-    #     "/home/dtpthao/workspace/nnUNet/nnunetv2/tuanluc_dev/results/hgg_lgg/checkpoints/model_95.pt"
-    # )
-    # print(nnunet_trainer.network.encoder)

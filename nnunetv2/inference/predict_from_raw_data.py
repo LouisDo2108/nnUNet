@@ -98,13 +98,14 @@ def load_what_we_need(model_training_output_dir, use_folds, checkpoint_name, cus
     trainer_class = recursive_find_python_class(join(nnunetv2.__path__[0], "training", "nnUNetTrainer"),
                                                 trainer_name, 'nnunetv2.training.nnUNetTrainer')
     # In an attempt to fix the @staticmethod issue
-    from nnunetv2.tuanluc_dev.get_network_from_plans import get_network_from_plans
-    network = get_network_from_plans(plans_manager, dataset_json, configuration_manager,
-                                     num_input_channels, deep_supervision=False, 
-                                     custom_network_config_path=custom_network_config_path)
-    
-    # network = trainer_class.build_network_architecture(plans_manager, dataset_json, configuration_manager, 
-    #                                                    num_input_channels, enable_deep_supervision=False)
+    if custom_network_config_path is None:
+        network = trainer_class.build_network_architecture(plans_manager, dataset_json, configuration_manager, 
+                                                       num_input_channels, enable_deep_supervision=False)
+    else:
+        from nnunetv2.tuanluc_dev.get_network_from_plans import get_network_from_plans
+        network = get_network_from_plans(plans_manager, dataset_json, configuration_manager,
+                                        num_input_channels, deep_supervision=False, 
+                                        custom_network_config_path=custom_network_config_path)
     # End of fix
     return parameters, configuration_manager, inference_allowed_mirroring_axes, plans_manager, dataset_json, network, trainer_name
 

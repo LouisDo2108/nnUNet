@@ -1,21 +1,160 @@
 from dynamic_network_architectures.architectures.unet import PlainConvUNet, ResidualEncoderUNet
 from dynamic_network_architectures.building_blocks.helper import get_matching_instancenorm, convert_dim_to_conv_op
 from dynamic_network_architectures.initialization.weight_init import init_last_bn_before_add_to_0
-from nnunetv2.utilities.network_initialization import InitWeights_He
 from nnunetv2.utilities.plans_handling.plans_handler import ConfigurationManager, PlansManager
 from torch import nn
 from nnunetv2.tuanluc_dev.network_initialization import (
-    init_weights_from_pretrained, 
+    init_weights_from_pretrained_proxy_task_encoder, 
     replace_nnunet_conv3d_with_acsconv_random,
     load_resnet18_custom_encoder,
     get_acs_pretrained_weights,
     replace_nnunet_encoder_conv3d_with_acs_pretrained,
-    replace_nnunet_encoder_conv3d_with_acs_pretrained_all
+    replace_nnunet_encoder_conv3d_with_acs_pretrained_all,
+    InitWeights_He
 )
 from pprint import pprint
 from pathlib import Path
-from nnunetv2.run.run_training import run_training_entry
 from nnunetv2.tuanluc_dev.utils import *
+
+
+def customize_network(model, custom_network_config_path):
+    
+    custom_network_config = read_custom_network_config(custom_network_config_path)
+    
+    if custom_network_config["proxy_encoder_class"] and custom_network_config["proxy_encoder_pretrained"]:
+        """
+        In case we want to replace the nnUNet encoder with a pretrained encoder from a proxy task
+        Both proxy_encoder_class and proxy_encoder_pretrained must be specified
+        """
+        print("---------- REPLACE NNUNET ENCODER WITH CUSTOM PRETRAINED PROXY TASK ENCODER ----------")        
+        try:
+            # Simply pass in the config path
+            model, pretrained_path = init_weights_from_pretrained_proxy_task_encoder(
+                nnunet_model=model, 
+                custom_network_config_path=custom_network_config_path
+            )
+            print("Successfully init weights from pretrained proxy task encoder from \n", pretrained_path)
+        except Exception as e:
+            print("Failed to init weights from pretrained proxy task encoder")
+            print("Error: ", e)
+            raise e
+    elif custom_network_config["acsconv"]:
+        """
+        If no pretrained proxy task encoder is specified or any other reason
+        Assume you want to replace conv3d with ACSConv
+        Specify pretrained model using "acs_pretrained" key, random init if None
+        Layer that are not loaded with pretrained weights will be init with nnUNet init (default),
+        else will be init with ACSConv default init
+        """
+        print("---------- REPLACE CONV3D WITH ACSConv ----------")
+        # acs_pretrained can be either timm pretrained or custom pretrained encoder
+        # First, we will load the acs_conv pretrained weights as a dict
+        # Then, we will replace the conv3d with acsconv
+        
+        # ------------------ Load ACSConv pretrained weights as a dict ------------------
+        acsconv_dict = load_acsconv_dict(custom_network_config)
+        
+        # ------------------ Replace Conv3D with ACSConv with pretrained weight/random weight ------------------
+        replace_conv3d_and_load_weight_from_acsconv(model, custom_network_config, acsconv_dict)
+        
+        # Always init with nnUNet init for non-pretrained layers after replacing conv3d with ACSConv
+        # Otherwise, these layers are already init with ACSConv default init
+        if custom_network_config["nnUNet_init"]:
+            model.apply(InitWeights_He(1e-2))
+            print("Successfully init with nnUNet init")
+        else:
+            print("Successfully init with ACSConv default init")
+    # elif custom_network_config["conv_pretrained"] is not None:
+    #     """
+    #     Normal Conv3D nnUNet
+    #     Can load custom pretrained encoder using "conv_pretrained" key
+    #     Currently only support HGG/LGG classification pretrained encoder
+    #     """
+    #     print("---------- CONV3D NNUNET WITH PRETRAINED ENCODER ----------")
+    #     # proxy_encoder_class: null # (Available: HGGLGGClassifier, ImageNetBratsClassifier)
+    #     # proxy_encoder_pretrained: null
+        
+    #     # Init weights from pretrained encoder (Proxy task)
+    #     conv_pretrained = custom_network_config["conv_pretrained"]
+    #     try:
+    #         model = init_weights_from_pretrained(
+    #             nnunet_model=model, 
+    #             pretrained_model_path=conv_pretrained
+    #         )
+    #         print("Successfully init weights from pretrained encoder from \n", conv_pretrained)
+    #         print("Conv3D nnUNet is already init with nnUNet init") 
+    #     except Exception as e:
+    #         print("Failed to init weights from pretrained encoder")
+    #         print("Error: ", e)
+    #         raise e
+    else:
+        print("---------- DEFAULT CONV3D NNUNET ----------")
+        print("Do nothing")
+        
+    print("--------------------------------------------------\n")
+
+
+def replace_conv3d_and_load_weight_from_acsconv(model, custom_network_config, acsconv_dict):
+    try:
+        print("Trying to replace Conv3D with ACSConv")
+            
+            # We always load the random init first
+        replace_nnunet_conv3d_with_acsconv_random(model, nn.Conv3d)
+        print("Successfully replaced conv3d with random ACSConv")
+            
+            # Always init with nnUNet init for non-pretrained layers
+            # After replacing conv3d with ACSConv
+            # Otherwise, these layers are already init with ACSConv default init
+        if custom_network_config["nnUNet_init"]:
+            model.apply(InitWeights_He(1e-2))
+            
+            # If we do not have pretrained weights, we are done
+        if acsconv_dict is None:
+            if custom_network_config["nnUNet_init"]:
+                print("Successfully init with nnUNet init")
+            else:
+                print("Successfully init with ACSConv default init")
+            print("--------------------------------------------------\n")
+            return model
+            
+            # From this point, we have pretrained weights that need further processing
+            # We have 2 version of initializing a model with ACSConv pretrained weights
+            # 1. Replace conv3d with ACSConv with the same in_channels, out_channels, kernel_size, stride
+            # 2. Replace conv3d with ACSConv regardlessly (aka, replace "All")
+        if custom_network_config["replace_all"]:
+            replace_nnunet_encoder_conv3d_with_acs_pretrained_all(model, acsconv_dict)
+            print("Successfully load pretrained weights for all ACSConv (All)")
+        else:
+            replace_nnunet_encoder_conv3d_with_acs_pretrained(model, acsconv_dict)
+            print("Successfully load pretrained weights for some ACSConv")
+    except Exception as e:
+        print("Failed to replace Conv3D with ACSConv")
+        print("Error: ", e)
+        raise e
+
+def load_acsconv_dict(custom_network_config):
+    acs_pretrained = custom_network_config["acs_pretrained"]
+    acsconv_dict = None
+        
+    try:
+        print("Trying to load ACSConv pretrained weights as a dictionary")
+        if acs_pretrained is None:
+                # Random init, do nothing
+            pass
+        elif Path(acs_pretrained).is_file():
+                # Use custom pretrained encoder
+                # Check if acs_pretrained is a path to a pretrained encoder
+                # Currently only supports "load_resnet18_custom_encoder"
+            acs_pretrained = load_resnet18_custom_encoder(acs_pretrained)
+            _, acsconv_dict = get_acs_pretrained_weights(model_name=acs_pretrained)
+        else:
+            _, acsconv_dict = get_acs_pretrained_weights(model_name=acs_pretrained)
+        print("Successfully loaded ACSConv pretrained weights as a dictionary\n")
+    except Exception as e:
+        print("Failed to load ACSConv pretrained weights as a dictionary")
+        print("Error: ", e)
+        raise e
+    return acsconv_dict
 
 
 def get_network_from_plans(plans_manager: PlansManager,
@@ -87,16 +226,14 @@ def get_network_from_plans(plans_manager: PlansManager,
     model.apply(InitWeights_He(1e-2))
     if network_class == ResidualEncoderUNet:
         model.apply(init_last_bn_before_add_to_0)
-    
-    # custom_network_config = {
-    #     "acsconv": False,
-    #     "conv_pretrained": None, # HGG/LGG pretrained
-    #     "acs_pretrained": "resnet18",
-    #     "replace_all": False, # Which mode to choose, all or not all
-    #     "nnUNet_init": True,
-    # }
-    # "/home/dtpthao/workspace/nnUNet/nnunetv2/tuanluc_dev/results/resnet18_brats_imagenet_encoder/checkpoints/model_10.pt"
-    
+
+    if custom_network_config_path is not None:
+        customize_network(model, custom_network_config_path)
+        
+    return model
+
+
+def read_custom_network_config(custom_network_config_path):
     print("---------- Custom network config ----------")
     try:
         print("Config file name:", Path(custom_network_config_path).name)
@@ -105,143 +242,4 @@ def get_network_from_plans(plans_manager: PlansManager,
     except Exception as e:
         print(e)
     print("--------------------------------------------------\n")
-    
-    if custom_network_config["acsconv"]:
-        """
-        Replace conv3d with ACSConv
-        Specify pretrained model using "acs_pretrained" key, random init if None
-        Layer that are not loaded with pretrained weights will be init with nnUNet init (default),
-        else will be init with ACSConv default init
-        """
-        print("---------- REPLACE CONV3D WITH ACSConv ----------")
-        # acs_pretrained can be either timm pretrained or custom pretrained encoder
-        # First, we will load the acs_conv pretrained weights as a dict
-        # Then, we will replace the conv3d with acsconv
-        
-        # ------------------ Load ACSConv pretrained weights as a dict ------------------
-        acs_pretrained = custom_network_config["acs_pretrained"]
-        acsconv_dict = None
-        
-        try:
-            print("Trying to load ACSConv pretrained weights as a dictionary")
-            if acs_pretrained is None:
-                # Random init, do nothing
-                pass
-            elif Path(acs_pretrained).is_file():
-                # Use custom pretrained encoder
-                # Check if acs_pretrained is a path to a pretrained encoder
-                # Currently only supports "load_resnet18_custom_encoder"
-                acs_pretrained = load_resnet18_custom_encoder(acs_pretrained)
-                _, acsconv_dict = get_acs_pretrained_weights(model_name=acs_pretrained)
-            else:
-                _, acsconv_dict = get_acs_pretrained_weights(model_name=acs_pretrained)
-            print("Successfully loaded ACSConv pretrained weights as a dictionary\n")
-        except Exception as e:
-            print("Failed to load ACSConv pretrained weights as a dictionary")
-            print("Error: ", e)
-            raise e
-        
-        # ------------------ Replace Conv3D with ACSConv ------------------
-        try:
-            print("Trying to replace Conv3D with ACSConv")
-            
-            # We always load the random init first
-            replace_nnunet_conv3d_with_acsconv_random(model, nn.Conv3d)
-            print("Successfully replaced conv3d with random ACSConv")
-            
-            # Always init with nnUNet init for non-pretrained layers
-            # After replacing conv3d with ACSConv
-            # Otherwise, these layers are already init with ACSConv default init
-            if custom_network_config["nnUNet_init"]:
-                model.apply(InitWeights_He(1e-2))
-            
-            # If we do not have pretrained weights, we are done
-            if acsconv_dict is None:
-                if custom_network_config["nnUNet_init"]:
-                    print("Successfully init with nnUNet init")
-                else:
-                    print("Successfully init with ACSConv default init")
-                print("--------------------------------------------------\n")
-                return model
-            
-            # From this point, we have pretrained weights that need further processing
-            # We have 2 version of initializing a model with ACSConv pretrained weights
-            # 1. Replace conv3d with ACSConv with the same in_channels, out_channels, kernel_size, stride
-            # 2. Replace conv3d with ACSConv regardlessly (aka, replace "All")
-            if custom_network_config["replace_all"]:
-                replace_nnunet_encoder_conv3d_with_acs_pretrained_all(model, acsconv_dict)
-                print("Successfully load pretrained weights for all ACSConv (All)")
-            else:
-                replace_nnunet_encoder_conv3d_with_acs_pretrained(model, acsconv_dict)
-                print("Successfully load pretrained weights for some ACSConv")
-        except Exception as e:
-            print("Failed to replace Conv3D with ACSConv")
-            print("Error: ", e)
-            raise e
-        
-        # Always init with nnUNet init for non-pretrained layers after replacing conv3d with ACSConv
-        # Otherwise, these layers are already init with ACSConv default init
-        if custom_network_config["nnUNet_init"]:
-            model.apply(InitWeights_He(1e-2))
-            print("Successfully init with nnUNet init")
-        else:
-            print("Successfully init with ACSConv default init")
-    elif custom_network_config["conv_pretrained"] is not None:
-        """
-        Normal Conv3D nnUNet
-        Can load custom pretrained encoder using "conv_pretrained" key
-        Currently only support HGG/LGG classification pretrained encoder
-        """
-        print("---------- CONV3D NNUNET WITH PRETRAINED ENCODER ----------")
-        
-        # Init weights from pretrained encoder (Proxy task)
-        conv_pretrained = custom_network_config["conv_pretrained"]
-        try:
-            #"/home/dtpthao/workspace/nnUNet/nnunetv2/tuanluc_dev/results/hgg_lgg/checkpoints/model_55.pt"
-            model = init_weights_from_pretrained(
-                nnunet_model=model, 
-                pretrained_model_path=conv_pretrained
-            )
-            print("Successfully init weights from pretrained encoder from \n", conv_pretrained)
-            print("Conv3D nnUNet is already init with nnUNet init") 
-        except Exception as e:
-            print("Failed to init weights from pretrained encoder")
-            print("Error: ", e)
-            raise e
-    else:
-        print("---------- DEFAULT NNUNET ----------")
-        print("Do nothing")
-        
-    print("--------------------------------------------------\n")
-    return model
-    
-    # ------------------ Custom network config ------------------
-    # # Replace encoder conv with ACSConv pretrained
-    
-    # # Using custom pretrained resnet18 encoder
-    # # pretrained_resnet18_path = "/home/dtpthao/workspace/nnUNet/nnunetv2/tuanluc_dev/results/resnet18_brats_imagenet_encoder/checkpoints/model_10.pt"
-    # # model_name = load_resnet18_custom_encoder(pretrained_resnet18_path)
-    # # model_name = 'resnet18'
-    # # _, acsconv_dict = get_acs_pretrained_weights(model_name=model_name)
-    
-    # # Replace conv with ACSConv
-    # try:
-    #     # replace_nnunet_conv3d_with_acsconv_random(model, nn.Conv3d)
-    #     # print("Successfully replaced conv3d with ACSConv")
-        
-    #     model.apply(InitWeights_He(1e-2)) # nnUNet init for ACSConv, disable if using ACS default init
-        
-    #     # replace_nnunet_encoder_conv3d_with_acs_pretrained(model.encoder, acsconv_dict)
-    #     # print("Successfully load pretrained weights for ACSConv")
-        
-    #     # replace_nnunet_encoder_conv3d_with_acs_pretrained_all(model.encoder, acsconv_dict)
-    #     # print("Successfully load pretrained weights for all ACSConv")
-    # except Exception as e:
-    #     print(e)
-        
-    # # Init weights from pretrained encoder (Proxy task)
-    # # model = init_weights_from_pretrained(
-    # #     nnunet_model=model, 
-    # #     pretrained_model_path="/home/dtpthao/workspace/nnUNet/nnunetv2/tuanluc_dev/results/hgg_lgg/checkpoints/model_55.pt")
-    
-    # return model
+    return custom_network_config
