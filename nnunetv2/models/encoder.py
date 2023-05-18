@@ -2,6 +2,7 @@ from dynamic_network_architectures.building_blocks.plain_conv_encoder import Pla
 import torch 
 import torch.nn as nn
 from nnunetv2.tuanluc_dev.utils import *
+from nnunetv2.run.run_training import get_trainer_from_args
 from nnunetv2.tuanluc_dev.get_network_from_plans import load_acsconv_dict, replace_conv3d_and_load_weight_from_acsconv, read_custom_network_config
 
 
@@ -56,36 +57,6 @@ class HGGLGGClassifier(nn.Module):
         x = self.classifier(x)
         return x
         
-
-class ImageNetBratsClassifier(nn.Module):
-    def __init__(self, num_classes, dropout_rate=0.5, return_skips=False, custom_network_config_path=None):
-        super(ImageNetBratsClassifier, self).__init__()
-        
-        if custom_network_config_path is not None:
-            # Read the custom config
-            custom_network_config = read_custom_network_config(custom_network_config_path)
-            
-            # Replace the conv3d with acsconv and load the weights if needed
-            if custom_network_config["acsconv"]:
-                acsconv_dict = load_acsconv_dict(custom_network_config)
-                replace_conv3d_and_load_weight_from_acsconv(self.encoder, custom_network_config, acsconv_dict)
-        
-        self.encoder, _ = get_model_and_transform("resnet18", pretrained=True)
-        self.encoder.fc = nn.Identity()
-        self.classifier = nn.Sequential(
-            nn.Dropout(dropout_rate),
-            nn.Linear(512, 256),
-            nn.BatchNorm1d(256),
-            nn.LeakyReLU(inplace=True),
-            nn.Dropout(dropout_rate),
-            nn.Linear(256, num_classes-1),
-        )
-        
-        
-    def forward(self, x):
-        x = self.encoder(x)
-        x = self.classifier(x)
-        return x
 
 
 if __name__ == "__main__":

@@ -85,10 +85,8 @@ class BRATSDataset(Dataset):
         
         data = np.load(path)
         if self.train and self.train_transform:
-            # print("Train transform")
             data = self.train_transform(data)
         if not self.train and self.val_transform:
-            # print("Val transform")
             data = self.val_transform(data)
 
         return data.as_tensor(), torch.tensor(float(label))
@@ -260,13 +258,13 @@ def get_ImageNetBRATSDataset_dataloader(batch_size, num_workers):
 
 if __name__ == '__main__':
     set_seed(42)
-    # train_loader, val_loader = get_dataloader(
-    #     root_dir='/home/dtpthao/workspace/brats_projects/datasets/BraTS_2018/train',
-    #     batch_size=4, num_workers=1
-    # )
-    train_loader, val_loader = get_ImageNetBRATSDataset_dataloader(
+    train_loader, val_loader = get_BRATSDataset_dataloader(
+        root_dir='/home/dtpthao/workspace/brats_projects/datasets/BraTS_2018/train',
         batch_size=4, num_workers=1
     )
+    # train_loader, val_loader = get_ImageNetBRATSDataset_dataloader(
+    #     batch_size=4, num_workers=1
+    # )
     
     for data, label in train_loader:
         print(data.shape, label.shape)

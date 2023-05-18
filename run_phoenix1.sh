@@ -11,14 +11,20 @@ conda activate nnunet
 
 cd /home/dtpthao/workspace/nnUNet/nnunetv2
 
+
 train_test="test"
 image_folder=$([ "$train_test" == "train" ] && echo "imagesTr" || echo "imagesTs")
-# name="acs_random_nnunet_init"
-# config_path="/home/dtpthao/workspace/nnUNet/nnunetv2/tuanluc_dev/configs/acs_random.yaml"
-# name="acs_resnet18_encoder_nnunet_init"
-# config_path="/home/dtpthao/workspace/nnUNet/nnunetv2/tuanluc_dev/configs/acs_resnet18_encoder.yaml"
-name="acs_resnet18_encoder_all_nnunet_init"
-config_path="/home/dtpthao/workspace/nnUNet/nnunetv2/tuanluc_dev/configs/acs_resnet18_encoder_all.yaml"
+# name="acs_resnet18_encoder_all_bnda"
+# name="acs_resnet18_encoder_bn"
+name="hgg_lgg_acs_resnet18_encoder_nnunet_init"
+# nnUNetTrainer_50epochs_tuanluc
+# nnUNetTrainerDA_50epochs_tuanluc
+# nnUNetTrainerBN_50epochs_tuanluc
+# nnUNetTrainerBNDA_50epochs_tuanluc
+# trainer="nnUNetTrainerBN_50epochs_tuanluc"
+trainer="nnUNetTrainer_50epochs_tuanluc"
+config_path="/home/dtpthao/workspace/nnUNet/nnunetv2/tuanluc_dev/configs/hgg_lgg_acs_resnet18_encoder.yaml"
+
 
 # 0. Dataset conversion
 # python dataset_conversion/Dataset032_BraTS2018.py
@@ -34,7 +40,7 @@ config_path="/home/dtpthao/workspace/nnUNet/nnunetv2/tuanluc_dev/configs/acs_res
 
 # 2. Train + Val fold 0
 python run/run_training.py 032 $name 0 -num_gpus 1 \
--tr nnUNetTrainer_50epochs_tuanluc \
+-tr $trainer \
 -custom_cfg_path $config_path
 
 # (Optional) 2.1  find best config (Only viable after training all 5 folds)
@@ -43,13 +49,13 @@ python run/run_training.py 032 $name 0 -num_gpus 1 \
 # 3. Test (nnUnet format)
 # The -o (output folder) should locate in /home/dtpthao/workspace/nnUNet/env/results/Dataset032_BraTS2018/{something}
 # Image folders: imagesTs imagesTr
-# Available trainers: nnUNetTrainer nnUNetTrainer_50epochs_tuanluc
+# Available trainers: nnUNetTrainer nnUNetTrainer_50epochs_tuanluc nnUNetTrainerDA_50epochs_tuanluc
 
 python /home/dtpthao/workspace/nnUNet/nnunetv2/inference/predict_from_raw_data.py \
 -i /tmp/htluc/nnunet/nnUNet_raw/Dataset032_BraTS2018/$image_folder \
 -o /home/dtpthao/workspace/nnUNet/env/results/Dataset032_BraTS2018/$name/fold_0/$train_test \
 -d 032 \
--tr "nnUNetTrainer_50epochs_tuanluc" \
+-tr $trainer \
 -c $name \
 -f 0 \
 -custom_cfg_path $config_path

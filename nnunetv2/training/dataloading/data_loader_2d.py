@@ -1,7 +1,7 @@
 import numpy as np
 from nnunetv2.training.dataloading.base_data_loader import nnUNetDataLoaderBase
 from nnunetv2.training.dataloading.nnunet_dataset import nnUNetDataset
-
+from nnunetv2.training.dataloading.brats_dataset import BRATSDataset
 
 class nnUNetDataLoader2D(nnUNetDataLoaderBase):
     def generate_train_batch(self):
@@ -85,6 +85,55 @@ class nnUNetDataLoader2D(nnUNetDataLoaderBase):
 
         return {'data': data_all, 'seg': seg_all, 'properties': case_properties, 'keys': selected_keys}
 
+class StratifiedBatchSampler:
+    """Stratified batch sampling
+    Provides equal representation of target classes in each batch
+    """
+    def __init__(self, y, batch_size, shuffle=True):
+        if torch.is_tensor(y):
+            y = y.cpu().numpy()
+        elif isinstance(y, list):
+            y = np.array(y)
+        assert len(y.shape) == 1, 'label array must be 1D'
+        self.n_batches = int(len(y) / batch_size)
+        self.skf = StratifiedKFold(n_splits=self.n_batches, shuffle=shuffle)
+        self.X = torch.randn(len(y),1).numpy()
+        self.y = y
+        self.shuffle = shuffle
+
+    def __iter__(self):
+        if self.shuffle:
+            self.skf.random_state = torch.randint(0,int(1e8),size=()).item()
+        for train_idx, test_idx in self.skf.split(self.X, self.y):
+            yield test_idx
+
+    def __len__(self):
+        # return len(self.y)
+        return self.n_batches
+
+      
+def get_BRATSDataset_dataloader(root_dir, batch_size, num_workers):
+    
+    train_transform = mt.Compose(
+        [
+            mt.Resize((128, 128, 128), size_mode='all', mode="trilinear")
+        ]
+    )
+    val_transform = mt.Compose(
+        [
+            mt.Resize((128, 128, 128), size_mode='all', mode="trilinear")
+        ]
+    )
+    
+    train_dataset = BRATSDataset(root_dir, train=True, train_transform=train_transform, fold=0)
+    val_dataset = BRATSDataset(root_dir, train=False, val_transform=val_transform, fold=0)
+    
+    # train_loader = DataLoader(train_dataset, batch_size=batch_size, shuffle=True, num_workers=num_workers)
+    sampler = StratifiedBatchSampler(train_dataset.labels, batch_size)
+    train_loader = DataLoader(train_dataset, batch_sampler=sampler, num_workers=num_workers)
+    val_loader = DataLoader(val_dataset, batch_size=batch_size, shuffle=False, num_workers=num_workers)
+    
+    return train_loader, val_loader
 
 if __name__ == '__main__':
     folder = '/media/fabian/data/nnUNet_preprocessed/Dataset004_Hippocampus/2d'

@@ -6,6 +6,10 @@ import os
 import yaml
 
 
+def count_parameters(model):
+    return sum(p.numel() for p in model.parameters() if p.requires_grad)
+
+
 def load_yaml_config_file(yaml_file_path):
     """
     Load a YAML file, recursively resolving any included files specified with the "includes" keyword.

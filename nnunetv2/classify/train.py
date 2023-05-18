@@ -1,22 +1,24 @@
 import os
 import sys
-print(sys.path)
+
 os.environ["CUDA_LAUNCH_BLOCKING"] = "1"
 os.environ["CUDA_DEVICE_ORDER"]="PCI_BUS_ID"   
 os.environ["CUDA_VISIBLE_DEVICES"]= "1"
 
 from pathlib import Path
+sys.path.insert(0,str(Path(__file__).resolve().parent.parent))
+print(sys.path)
 from tqdm import tqdm
 
 import torch
 import torch.optim as optim
 import torch.nn as nn
 import torch.nn.functional as F
-from torch.optim.lr_scheduler import _LRScheduler
 
-from nnunetv2.tuanluc_dev.dataloaders import get_BRATSDataset_dataloader, get_ImageNetBRATSDataset_dataloader
-from nnunetv2.tuanluc_dev.encoder import HGGLGGClassifier, ImageNetBratsClassifier
-from nnunetv2.tuanluc_dev.utils import *
+from nnunetv2.training.dataloading.data_loader_2d import get_BRATSDataset_dataloader
+from nnunetv2.models.encoder import HGGLGGClassifier
+from nnunetv2.training.lr_scheduler import PolyLRScheduler
+
 from sklearn.metrics import accuracy_score, precision_score, recall_score, f1_score, roc_auc_score
 import matplotlib.pyplot as plt
 
@@ -35,24 +37,27 @@ def plot_loss(train_losses, val_losses, output_folder):
     # Save the plot as a PNG picture
     plt.savefig(os.path.join(output_folder, 'loss_plot.png'))
 
+def log_loss(output_folder, epoch, train_loss, train=False):
+    train_val = 'Train' if train else 'Validation'
+    with open(os.path.join(output_folder, '{}_loss.txt'.format(train_val)), 'a') as f:
+        f.write('Epoch: {} \t{} Loss: {:.6f}\n'.format(epoch, train_val, train_loss))
 
-class PolyLRScheduler(_LRScheduler):
-    def __init__(self, optimizer, initial_lr: float, max_steps: int, exponent: float = 0.9, current_step: int = None):
-        self.optimizer = optimizer
-        self.initial_lr = initial_lr
-        self.max_steps = max_steps
-        self.exponent = exponent
-        self.ctr = 0
-        super().__init__(optimizer, current_step if current_step is not None else -1, False)
-
-    def step(self, current_step=None):
-        if current_step is None or current_step == -1:
-            current_step = self.ctr
-            self.ctr += 1
-
-        new_lr = self.initial_lr * (1 - current_step / self.max_steps) ** self.exponent
-        for param_group in self.optimizer.param_groups:
-            param_group['lr'] = new_lr
+def log_metrics(output_folder, epoch, loss, predictions, true_labels, train=False):
+    train_val = 'Train' if train else 'Validation'
+    accuracy = accuracy_score(true_labels, predictions)
+    precision = precision_score(true_labels, predictions)
+    recall = recall_score(true_labels, predictions)
+    f1 = f1_score(true_labels, predictions)
+    roc_auc = roc_auc_score(true_labels, predictions)
+            
+    with open(os.path.join(output_folder, '{}_metrics.txt'.format(train_val)), 'a') as f:
+        f.write('Epoch: {:<5}\n'.format(epoch))
+        f.write('{:<10} Average Loss:  {:.4f}\n'.format(train_val, loss))
+        f.write('{:<10} Accuracy:      {:.4f}\n'.format(train_val, accuracy))
+        f.write('{:<10} Precision:     {:.4f}\n'.format(train_val, precision))
+        f.write('{:<10} Recall:        {:.4f}\n'.format(train_val, recall))
+        f.write('{:<10} F1 Score:      {:.4f}\n'.format(train_val, f1))
+        f.write('{:<10} ROC AUC Score: {:.4f}\n'.format(train_val, roc_auc))
 
 
 def train(model, train_loader, val_loader, 
@@ -134,58 +139,18 @@ def train(model, train_loader, val_loader,
         log_loss(output_folder, epoch, train_loss, train=True)
 
 
-def log_loss(output_folder, epoch, train_loss, train=False):
-    train_val = 'Train' if train else 'Validation'
-    with open(os.path.join(output_folder, '{}_loss.txt'.format(train_val)), 'a') as f:
-        f.write('Epoch: {} \t{} Loss: {:.6f}\n'.format(epoch, train_val, train_loss))
-
-
-def log_metrics(output_folder, epoch, loss, predictions, true_labels, train=False):
-    train_val = 'Train' if train else 'Validation'
-    accuracy = accuracy_score(true_labels, predictions)
-    precision = precision_score(true_labels, predictions)
-    recall = recall_score(true_labels, predictions)
-    f1 = f1_score(true_labels, predictions)
-    roc_auc = roc_auc_score(true_labels, predictions)
-            
-    with open(os.path.join(output_folder, '{}_metrics.txt'.format(train_val)), 'a') as f:
-        f.write('Epoch: {:<5}\n'.format(epoch))
-        f.write('{:<10} Average Loss:  {:.4f}\n'.format(train_val, loss))
-        f.write('{:<10} Accuracy:      {:.4f}\n'.format(train_val, accuracy))
-        f.write('{:<10} Precision:     {:.4f}\n'.format(train_val, precision))
-        f.write('{:<10} Recall:        {:.4f}\n'.format(train_val, recall))
-        f.write('{:<10} F1 Score:      {:.4f}\n'.format(train_val, f1))
-        f.write('{:<10} ROC AUC Score: {:.4f}\n'.format(train_val, roc_auc))
-
-
 def train_hgg_lgg_classifier(output_folder, custom_network_config_path):
     train_loader, val_loader = get_BRATSDataset_dataloader(
         root_dir='/home/dtpthao/workspace/brats_projects/datasets/BraTS_2018/train',
         batch_size=4, num_workers=8)
     
     model = HGGLGGClassifier(4, 2, custom_network_config_path=custom_network_config_path).to(torch.device('cuda'))
-    # summary(model, (4, 128, 128, 128))
     train(model, train_loader, val_loader, 
           output_folder=output_folder, 
           num_epochs=100, learning_rate=0.001)
-    
-    
-def train_imagenet_brats_resnet18_encoder():
-    train_loader, val_loader = get_ImageNetBRATSDataset_dataloader(
-        batch_size=256, num_workers=8
-    )
-    
-    model = ImageNetBratsClassifier(num_classes=2)
-    # summary(model, (3, 224, 224))
 
-    train(model, train_loader, val_loader, 
-          output_folder="/home/dtpthao/workspace/nnUNet/nnunetv2/tuanluc_dev/results/resnet18_brats_imagenet_encoder", 
-          num_epochs=100, learning_rate=0.001)
-
-
-if __name__ == '__main__':
+if __name__=='__main__':
     train_hgg_lgg_classifier(
-        output_folder="/home/dtpthao/workspace/nnUNet/nnunetv2/tuanluc_dev/results/hgg_lgg_acs_resnet18_encoder_all",
+        output_folder="/home/dtpthao/workspace/nnUNet/nnunetv2/tuanluc_dev/results/cls_hgg_lgg_test",
         custom_network_config_path="/home/dtpthao/workspace/nnUNet/nnunetv2/tuanluc_dev/configs/hgg_lgg_acs_resnet18_encoder_all.yaml"
     )
-    
