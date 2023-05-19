@@ -11,3 +11,4 @@ proxy_encoder_class: null # HGGLGGClassifier
 proxy_encoder_pretrained: null # "/home/dtpthao/workspace/nnUNet/nnunetv2/tuanluc_dev/results/hgg_lgg/checkpoints/model_55.pt"
 replace_all: False
 nnUNet_init: True
+jcs: False

@@ -1,7 +1,7 @@
 import numpy as np
 from nnunetv2.training.dataloading.base_data_loader import nnUNetDataLoaderBase
 from nnunetv2.training.dataloading.nnunet_dataset import nnUNetDataset
-from nnunetv2.training.dataloading.brats_dataset import BRATSDataset
+# from nnunetv2.training.dataloading.brats_dataset import BRATSDataset
 
 class nnUNetDataLoader2D(nnUNetDataLoaderBase):
     def generate_train_batch(self):

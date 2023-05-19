@@ -1,9 +1,5 @@
 import os
-from pprint import pprint
-from tqdm import tqdm
-from natsort import natsorted
 import torch
-import torch.nn as nn
 import numpy as np
 from pathlib import Path
 import json
@@ -18,107 +14,8 @@ from nnunetv2.configuration import ANISO_THRESHOLD, default_num_processes
 from nnunetv2.tuanluc_dev.utils import *
 import monai.transforms as mt
 import cv2
-# from torchvision import 
 
-# patch_size = [
-#     128,
-#     128,
-#     128
-# ]
-# dim = len(patch_size)
-
-# rotation_for_DA = {
-#     'x': (-30. / 360 * 2. * np.pi, 30. / 360 * 2. * np.pi),
-#     'y': (-30. / 360 * 2. * np.pi, 30. / 360 * 2. * np.pi),
-#     'z': (-30. / 360 * 2. * np.pi, 30. / 360 * 2. * np.pi),
-# }
-# mirror_axes = (0, 1, 2)
-
-# initial_patch_size = get_patch_size(patch_size[-dim:],
-#                                             *rotation_for_DA.values(),
-#                                             (0.85, 1.25))
-# need_to_pad = (np.array(initial_patch_size) - np.array(patch_size)).astype(int)
-# oversample_foreground_percent = 0.33
     
-
-class BRATSDataset(Dataset):
-    def __init__(self, root_dir, train, train_transform=None, val_transform=None, fold=0):
-        self.root_dir = root_dir
-        self.preprocessed_data_path = "/tmp/htluc/nnunet/nnUNet_preprocessed/Dataset032_BraTS2018/nnUNetPlans_3d_fullres"
-        
-        self.label_dict = {}
-        self.paths = []
-        self.labels = []
-        
-        self.train = train
-        self.train_transform = train_transform
-        self.val_transform = val_transform
-        
-        with open("/tmp/htluc/nnunet/nnUNet_preprocessed/Dataset032_BraTS2018/splits_final.json", "r") as f:
-            self.dataset_json = json.load(f)[0]
-            
-        for label in Path(root_dir).iterdir():
-            if label.stem not in ['LGG', 'HGG']:
-                continue
-            for subject in label.iterdir():
-                self.label_dict[subject.stem] = 0 if label.stem == 'LGG' else 1
-
-        
-        
-        if self.train:
-            for filename in self.dataset_json["train"]:
-                self.paths.append(self.preprocessed_data_path + "/" + filename + ".npy")
-                self.labels.append(self.label_dict[filename])
-            print("Train LGG: ", len(np.array(self.labels)[np.array(self.labels) == 0]))
-        else:
-            for filename in self.dataset_json["val"]:
-                self.paths.append(self.preprocessed_data_path + "/" + filename + ".npy")
-                self.labels.append(self.label_dict[filename])
-            print("Val LGG: ", len(np.array(self.labels)[np.array(self.labels) == 0]))
-        
-    def __len__(self):
-        return len(self.paths)
-    
-    def __getitem__(self, idx):
-        path = self.paths[idx]
-        label = self.labels[idx]
-        
-        data = np.load(path)
-        if self.train and self.train_transform:
-            data = self.train_transform(data)
-        if not self.train and self.val_transform:
-            data = self.val_transform(data)
-
-        return data.as_tensor(), torch.tensor(float(label))
-
-
-class StratifiedBatchSampler:
-    """Stratified batch sampling
-    Provides equal representation of target classes in each batch
-    """
-    def __init__(self, y, batch_size, shuffle=True):
-        if torch.is_tensor(y):
-            y = y.cpu().numpy()
-        elif isinstance(y, list):
-            y = np.array(y)
-        assert len(y.shape) == 1, 'label array must be 1D'
-        self.n_batches = int(len(y) / batch_size)
-        self.skf = StratifiedKFold(n_splits=self.n_batches, shuffle=shuffle)
-        self.X = torch.randn(len(y),1).numpy()
-        self.y = y
-        self.shuffle = shuffle
-
-    def __iter__(self):
-        if self.shuffle:
-            self.skf.random_state = torch.randint(0,int(1e8),size=()).item()
-        for train_idx, test_idx in self.skf.split(self.X, self.y):
-            yield test_idx
-
-    def __len__(self):
-        # return len(self.y)
-        return self.n_batches
-
-      
 def get_BRATSDataset_dataloader(root_dir, batch_size, num_workers):
     
     train_transform = mt.Compose(
@@ -208,6 +105,84 @@ def slice_brats(
             slice_brats_utils(npy, f, resize_transform, save_dir=_save_dir, save=save)
 
 
+class BRATSDataset(Dataset):
+    def __init__(self, root_dir, train, train_transform=None, val_transform=None, fold=0):
+        self.root_dir = root_dir
+        self.preprocessed_data_path = "/tmp/htluc/nnunet/nnUNet_preprocessed/Dataset032_BraTS2018/nnUNetPlans_3d_fullres"
+        
+        self.label_dict = {}
+        self.paths = []
+        self.labels = []
+        
+        self.train = train
+        self.train_transform = train_transform
+        self.val_transform = val_transform
+        
+        with open("/tmp/htluc/nnunet/nnUNet_preprocessed/Dataset032_BraTS2018/splits_final.json", "r") as f:
+            self.dataset_json = json.load(f)[0]
+            
+        for label in Path(root_dir).iterdir():
+            if label.stem not in ['LGG', 'HGG']:
+                continue
+            for subject in label.iterdir():
+                self.label_dict[subject.stem] = 0 if label.stem == 'LGG' else 1
+
+        
+        
+        if self.train:
+            for filename in self.dataset_json["train"]:
+                self.paths.append(self.preprocessed_data_path + "/" + filename + ".npy")
+                self.labels.append(self.label_dict[filename])
+            print("Train LGG: ", len(np.array(self.labels)[np.array(self.labels) == 0]))
+        else:
+            for filename in self.dataset_json["val"]:
+                self.paths.append(self.preprocessed_data_path + "/" + filename + ".npy")
+                self.labels.append(self.label_dict[filename])
+            print("Val LGG: ", len(np.array(self.labels)[np.array(self.labels) == 0]))
+        
+    def __len__(self):
+        return len(self.paths)
+    
+    def __getitem__(self, idx):
+        path = self.paths[idx]
+        label = self.labels[idx]
+        
+        data = np.load(path)
+        if self.train and self.train_transform:
+            data = self.train_transform(data)
+        if not self.train and self.val_transform:
+            data = self.val_transform(data)
+
+        return data.as_tensor(), torch.tensor(float(label))
+
+
+class StratifiedBatchSampler:
+    """Stratified batch sampling
+    Provides equal representation of target classes in each batch
+    """
+    def __init__(self, y, batch_size, shuffle=True):
+        if torch.is_tensor(y):
+            y = y.cpu().numpy()
+        elif isinstance(y, list):
+            y = np.array(y)
+        assert len(y.shape) == 1, 'label array must be 1D'
+        self.n_batches = int(len(y) / batch_size)
+        self.skf = StratifiedKFold(n_splits=self.n_batches, shuffle=shuffle)
+        self.X = torch.randn(len(y),1).numpy()
+        self.y = y
+        self.shuffle = shuffle
+
+    def __iter__(self):
+        if self.shuffle:
+            self.skf.random_state = torch.randint(0,int(1e8),size=()).item()
+        for train_idx, test_idx in self.skf.split(self.X, self.y):
+            yield test_idx
+
+    def __len__(self):
+        # return len(self.y)
+        return self.n_batches
+
+
 class ImageNetBRATSDataset(Dataset):
     def __init__(self, imagenet_json_path, brats_dir, train=True, train_transform=None, val_transform=None):
         with open(imagenet_json_path, 'r') as f:
@@ -257,23 +232,24 @@ def get_ImageNetBRATSDataset_dataloader(batch_size, num_workers):
 
 
 if __name__ == '__main__':
-    set_seed(42)
-    train_loader, val_loader = get_BRATSDataset_dataloader(
-        root_dir='/home/dtpthao/workspace/brats_projects/datasets/BraTS_2018/train',
-        batch_size=4, num_workers=1
-    )
-    # train_loader, val_loader = get_ImageNetBRATSDataset_dataloader(
+    pass
+    # set_seed(42)
+    # train_loader, val_loader = get_BRATSDataset_dataloader(
+    #     root_dir='/home/dtpthao/workspace/brats_projects/datasets/BraTS_2018/train',
     #     batch_size=4, num_workers=1
     # )
+    # # train_loader, val_loader = get_ImageNetBRATSDataset_dataloader(
+    # #     batch_size=4, num_workers=1
+    # # )
     
-    for data, label in train_loader:
-        print(data.shape, label.shape)
-        print(label)
-        # cv2.imwrite("/home/dtpthao/workspace/nnUNet/nnunetv2/tuanluc_dev/1.jpg", data.numpy()[0].transpose(1, 2, 0).astype(np.uint8))
-        break
+    # for data, label in train_loader:
+    #     print(data.shape, label.shape)
+    #     print(label)
+    #     # cv2.imwrite("/home/dtpthao/workspace/nnUNet/nnunetv2/tuanluc_dev/1.jpg", data.numpy()[0].transpose(1, 2, 0).astype(np.uint8))
+    #     break
     
-    for data, label in val_loader:
-        print(data.shape, label.shape)
-        # cv2.imwrite("/home/dtpthao/workspace/nnUNet/nnunetv2/tuanluc_dev/2.jpg", data.numpy()[0].transpose(1, 2, 0).astype(np.uint8))
-        break 
-    # slice_brats(save=True)
+    # for data, label in val_loader:
+    #     print(data.shape, label.shape)
+    #     # cv2.imwrite("/home/dtpthao/workspace/nnUNet/nnunetv2/tuanluc_dev/2.jpg", data.numpy()[0].transpose(1, 2, 0).astype(np.uint8))
+    #     break 
+    # # slice_brats(save=True)

@@ -103,9 +103,15 @@ def load_what_we_need(model_training_output_dir, use_folds, checkpoint_name, cus
         network = trainer_class.build_network_architecture(plans_manager, dataset_json, configuration_manager, 
                                                        num_input_channels, enable_deep_supervision=False)
     else:
-        from nnunetv2.tuanluc_dev.get_network_from_plans import get_network_from_plans, get_network_from_plans_bn
+        from nnunetv2.tuanluc_dev.get_network_from_plans import (
+            get_network_from_plans, get_network_from_plans_bn, get_network_from_plans_jcs
+        )
         if 'BN' in trainer_name:
             network = get_network_from_plans_bn(plans_manager, dataset_json, configuration_manager,
+                                            num_input_channels, deep_supervision=False, 
+                                            custom_network_config_path=custom_network_config_path)
+        elif 'JCS' in trainer_name:
+            network = get_network_from_plans_jcs(plans_manager, dataset_json, configuration_manager,
                                             num_input_channels, deep_supervision=False, 
                                             custom_network_config_path=custom_network_config_path)
         else:

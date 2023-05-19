@@ -15,25 +15,10 @@ import torch.nn.functional as F
 from torch.optim.lr_scheduler import _LRScheduler
 
 from nnunetv2.tuanluc_dev.dataloaders import get_BRATSDataset_dataloader, get_ImageNetBRATSDataset_dataloader
-from nnunetv2.tuanluc_dev.encoder import HGGLGGClassifier, ImageNetBratsClassifier
+from nnunetv2.tuanluc_dev.network_initialization import HGGLGGClassifier, ImageNetBratsClassifier
 from nnunetv2.tuanluc_dev.utils import *
 from sklearn.metrics import accuracy_score, precision_score, recall_score, f1_score, roc_auc_score
 import matplotlib.pyplot as plt
-
-
-def plot_loss(train_losses, val_losses, output_folder):
-    # Plot the training and validation losses
-    epochs = range(5, 5*len(train_losses) + 1, 5)
-    plt.plot(epochs, train_losses, 'g', label='Training loss')
-    plt.plot(epochs, val_losses, 'b', label='Validation loss')
-    plt.title('Training and validation loss')
-    plt.xlabel('Epochs')
-    plt.ylabel('Loss')
-    if len(val_losses) == 1:
-        plt.legend()
-    
-    # Save the plot as a PNG picture
-    plt.savefig(os.path.join(output_folder, 'loss_plot.png'))
 
 
 class PolyLRScheduler(_LRScheduler):
@@ -53,6 +38,21 @@ class PolyLRScheduler(_LRScheduler):
         new_lr = self.initial_lr * (1 - current_step / self.max_steps) ** self.exponent
         for param_group in self.optimizer.param_groups:
             param_group['lr'] = new_lr
+
+
+def plot_loss(train_losses, val_losses, output_folder):
+    # Plot the training and validation losses
+    epochs = range(5, 5*len(train_losses) + 1, 5)
+    plt.plot(epochs, train_losses, 'g', label='Training loss')
+    plt.plot(epochs, val_losses, 'b', label='Validation loss')
+    plt.title('Training and validation loss')
+    plt.xlabel('Epochs')
+    plt.ylabel('Loss')
+    if len(val_losses) == 1:
+        plt.legend()
+    
+    # Save the plot as a PNG picture
+    plt.savefig(os.path.join(output_folder, 'loss_plot.png'))
 
 
 def train(model, train_loader, val_loader, 
@@ -184,8 +184,9 @@ def train_imagenet_brats_resnet18_encoder():
 
 
 if __name__ == '__main__':
-    train_hgg_lgg_classifier(
-        output_folder="/home/dtpthao/workspace/nnUNet/nnunetv2/tuanluc_dev/results/hgg_lgg_acs_resnet18_encoder_all",
-        custom_network_config_path="/home/dtpthao/workspace/nnUNet/nnunetv2/tuanluc_dev/configs/hgg_lgg_acs_resnet18_encoder_all.yaml"
-    )
+    pass
+    # train_hgg_lgg_classifier(
+    #     output_folder="/home/dtpthao/workspace/nnUNet/nnunetv2/tuanluc_dev/results/hgg_lgg_acs_resnet18_encoder_all",
+    #     custom_network_config_path="/home/dtpthao/workspace/nnUNet/nnunetv2/tuanluc_dev/configs/hgg_lgg_acs_resnet18_encoder_all.yaml"
+    # )
     
