@@ -6,8 +6,9 @@ os.environ["CUDA_DEVICE_ORDER"]="PCI_BUS_ID"
 os.environ["CUDA_VISIBLE_DEVICES"]= "1"
 
 from pathlib import Path
-sys.path.insert(0,str(Path(__file__).resolve().parent.parent))
-print(sys.path)
+root = str(Path(__file__).resolve().parent.parent.parent)
+sys.path.append(root)
+
 from tqdm import tqdm
 
 import torch
@@ -71,7 +72,7 @@ def train(model, train_loader, val_loader,
     # scheduler = optim.lr_scheduler.ReduceLROnPlateau(optimizer, mode='min', factor=0.1, patience=5, verbose=True)
     criterion = nn.BCEWithLogitsLoss(pos_weight=torch.tensor([59.0 / (285.0 - 59.0)]).to(device))
     model.to(device)
-    model = torch.compile(model)
+    # model = torch.compile(model)
      # create output folder if not exist
     Path(output_folder).mkdir(parents=True, exist_ok=True)
      # create output folder if not exist
@@ -89,21 +90,29 @@ def train(model, train_loader, val_loader,
         true_labels = []
         
         # Train
-        for batch_idx, (data, target) in enumerate(train_loader):
+        for batch_idx, (data, target_dict) in enumerate(train_loader):
+            
             pbar.set_description(f"Epoch {epoch} Batch {batch_idx}")
-            data, target = data.to(device), target.float().to(device)
+            data = data.to(device)
+            target_dict['isHGG'] =  target_dict['isHGG'].float().to(device)
+            target_dict['ET'] =  target_dict['ET'].float().to(device)
+            target_dict['NCR/NET'] =  target_dict['NCR/NET'].float().to(device)
+
             optimizer.zero_grad()
-            output = model(data)
-            # pbar.set_description(f"Epoch {epoch} Label: {target.cpu().tolist()}\
-            #     Output: {torch.sigmoid(output).round().squeeze(1).cpu().tolist()}")
-            loss = criterion(output.squeeze(1), target)
+            logit_ishgg, logit_et, logit_ncrnet = model(data)
+
+            loss_ishgg = criterion(logit_ishgg.squeeze(1), target_dict['isHGG'])
+            loss_et = criterion(logit_et.squeeze(1), target_dict['ET'])
+            loss_ncrnet = criterion(logit_ncrnet.squeeze(1), target_dict['NCR/NET'])
+            loss = loss_ishgg + loss_et + loss_ncrnet
+
             loss.backward()
             optimizer.step()
             train_loss += loss.item()
             
-            pred = torch.sigmoid(output).round().squeeze(1)
+            pred = torch.sigmoid(logit_ishgg).round().squeeze(1)
             predictions.extend(pred.tolist())
-            true_labels.extend(target.tolist())
+            true_labels.extend(target_dict['isHGG'].tolist())
             
         train_loss /= len(train_loader)
         pbar.set_postfix_str(f"Train loss: {train_loss}")
@@ -115,13 +124,16 @@ def train(model, train_loader, val_loader,
             predictions = []
             true_labels = []
             with torch.no_grad():
-                for data, target in val_loader:
-                    data, target = data.to(device), target.float().to(device)
-                    output = model(data)
-                    val_loss += F.binary_cross_entropy_with_logits(output.squeeze(1), target, reduction='sum').item()
-                    pred = torch.sigmoid(output).round().squeeze(1)
+                for data, target_dict in val_loader:
+                    data = data.to(device)
+                    target_dict['isHGG'] =  target_dict['isHGG'].float().to(device)
+                    target_dict['ET'] =  target_dict['ET'].float().to(device)
+                    target_dict['NCR/NET'] =  target_dict['NCR/NET'].float().to(device)
+                    logit_ishgg, logit_et, logit_ncrnet = model(data)
+                    val_loss += F.binary_cross_entropy_with_logits(logit_ishgg.squeeze(1), target_dict['isHGG'], reduction='sum').item()
+                    pred = torch.sigmoid(logit_ishgg).round().squeeze(1)
                     predictions.extend(pred.tolist())
-                    true_labels.extend(target.tolist())
+                    true_labels.extend(target_dict['isHGG'].tolist())
 
             # train_loss /= len(train_loader.dataset)
             val_loss /= len(val_loader.dataset)
@@ -151,6 +163,6 @@ def train_hgg_lgg_classifier(output_folder, custom_network_config_path):
 
 if __name__=='__main__':
     train_hgg_lgg_classifier(
-        output_folder="/home/dtpthao/workspace/nnUNet/nnunetv2/tuanluc_dev/results/cls_hgg_lgg_test",
+        output_folder="/home/dtpthao/workspace/nnUNet/nnunetv2/tuanluc_dev/results/cls_hgglgg_etncrnet",
         custom_network_config_path="/home/dtpthao/workspace/nnUNet/nnunetv2/tuanluc_dev/configs/hgg_lgg_acs_resnet18_encoder_all.yaml"
     )

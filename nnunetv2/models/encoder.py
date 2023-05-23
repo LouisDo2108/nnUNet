@@ -48,14 +48,19 @@ class HGGLGGClassifier(nn.Module):
             nn.BatchNorm1d(128),
             nn.LeakyReLU(inplace=True),
             nn.Dropout(dropout_rate),
-            nn.Linear(128, num_classes-1),
         )
+        self.fc_hgglgg = nn.Linear(128,1)
+        self.fc_et = nn.Linear(128,1)
+        self.fc_ncrnet = nn.Linear(128,1)
         
         
     def forward(self, x):
         x = self.encoder(x)
         x = self.classifier(x)
-        return x
+        hgglgg = self.fc_hgglgg(x)
+        et = self.fc_et(x)
+        ncrnet = self.fc_ncrnet(x)
+        return hgglgg, et, ncrnet
         
 
 

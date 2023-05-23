@@ -1,7 +1,13 @@
+import torch
 import numpy as np
+import monai.transforms as mt
+from sklearn.model_selection import StratifiedKFold
+
 from nnunetv2.training.dataloading.base_data_loader import nnUNetDataLoaderBase
 from nnunetv2.training.dataloading.nnunet_dataset import nnUNetDataset
-# from nnunetv2.training.dataloading.brats_dataset import BRATSDataset
+from nnunetv2.training.dataloading.brats_dataset_2d import BRATSDataset
+
+
 
 class nnUNetDataLoader2D(nnUNetDataLoaderBase):
     def generate_train_batch(self):
@@ -130,8 +136,8 @@ def get_BRATSDataset_dataloader(root_dir, batch_size, num_workers):
     
     # train_loader = DataLoader(train_dataset, batch_size=batch_size, shuffle=True, num_workers=num_workers)
     sampler = StratifiedBatchSampler(train_dataset.labels, batch_size)
-    train_loader = DataLoader(train_dataset, batch_sampler=sampler, num_workers=num_workers)
-    val_loader = DataLoader(val_dataset, batch_size=batch_size, shuffle=False, num_workers=num_workers)
+    train_loader = torch.utils.data.DataLoader(train_dataset, batch_sampler=sampler, num_workers=num_workers)
+    val_loader = torch.utils.data.DataLoader(val_dataset, batch_size=batch_size, shuffle=False, num_workers=num_workers)
     
     return train_loader, val_loader
 
