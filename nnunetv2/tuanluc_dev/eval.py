@@ -1,7 +1,7 @@
 import torch
 import torch.nn as nn
 import numpy as np
-from nnunetv2.tuanluc_dev.dataloaders import get_dataloader
+from nnunetv2.tuanluc_dev.dataloaders import get_BRATSDataset_dataloader
 from nnunetv2.tuanluc_dev.encoder import HGGLGGClassifier
 from sklearn.metrics import accuracy_score, precision_score, recall_score, f1_score, roc_auc_score
 
@@ -79,7 +79,7 @@ def compute_classification_metrics(model, data_loader, device):
 
 if __name__ == '__main__':
     
-    train_loader, val_loader = get_dataloader(
+    train_loader, val_loader = get_BRATSDataset_dataloader(
         root_dir='/home/dtpthao/workspace/brats_projects/datasets/BraTS_2018/train',
         batch_size=4, num_workers=4)
     

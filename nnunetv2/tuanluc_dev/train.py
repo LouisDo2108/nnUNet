@@ -161,10 +161,9 @@ def log_metrics(output_folder, epoch, loss, predictions, true_labels, train=Fals
 def train_hgg_lgg_classifier(output_folder, custom_network_config_path):
     train_loader, val_loader = get_BRATSDataset_dataloader(
         root_dir='/home/dtpthao/workspace/brats_projects/datasets/BraTS_2018/train',
-        batch_size=4, num_workers=8)
+        batch_size=4, num_workers=16)
     
     model = HGGLGGClassifier(4, 2, custom_network_config_path=custom_network_config_path).to(torch.device('cuda'))
-    # summary(model, (4, 128, 128, 128))
     train(model, train_loader, val_loader, 
           output_folder=output_folder, 
           num_epochs=100, learning_rate=0.001)
@@ -184,9 +183,8 @@ def train_imagenet_brats_resnet18_encoder():
 
 
 if __name__ == '__main__':
-    pass
-    # train_hgg_lgg_classifier(
-    #     output_folder="/home/dtpthao/workspace/nnUNet/nnunetv2/tuanluc_dev/results/hgg_lgg_acs_resnet18_encoder_all",
-    #     custom_network_config_path="/home/dtpthao/workspace/nnUNet/nnunetv2/tuanluc_dev/configs/hgg_lgg_acs_resnet18_encoder_all.yaml"
-    # )
+    train_hgg_lgg_classifier(
+        output_folder="/home/dtpthao/workspace/nnUNet/nnunetv2/tuanluc_dev/results/hgg_lgg_acs_resnet18_encoder_all",
+        custom_network_config_path="/home/dtpthao/workspace/nnUNet/nnunetv2/tuanluc_dev/configs/hgg_lgg_acs_resnet18_encoder_all.yaml"
+    )
     

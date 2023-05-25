@@ -10,19 +10,17 @@ from pprint import pprint
 import nnunetv2
 from nnunetv2.tuanluc_dev.utils import *
 from nnunetv2.tuanluc_dev.acsconv.operators import ACSConv
+from nnunetv2.tuanluc_dev.jcs_combiner import JCSCombiner
 from nnunetv2.utilities.find_class_by_name import recursive_find_python_class
 from batchgenerators.utilities.file_and_folder_operations import join, isfile, load_json
-from dynamic_network_architectures.building_blocks.simple_conv_blocks import StackedConvBlocks
+
 
 from typing import Union, Type, List, Tuple
 from torch.nn.modules.conv import _ConvNd
 from torch.nn.modules.dropout import _DropoutNd
-from nnunetv2.tuanluc_dev.jcs_combiner import JCSCombiner
 from dynamic_network_architectures.architectures.unet import PlainConvUNet
+from dynamic_network_architectures.building_blocks.simple_conv_blocks import StackedConvBlocks
 from dynamic_network_architectures.building_blocks.plain_conv_encoder import PlainConvEncoder
-import torch 
-import torch.nn as nn
-from nnunetv2.tuanluc_dev.utils import *
 
 
 class HGGLGGClassifier(nn.Module):
@@ -75,7 +73,24 @@ class HGGLGGClassifier(nn.Module):
         x = self.encoder(x)
         x = self.classifier(x)
         return x
+
+
+class HGGLGGMultiHeadClassifier(HGGLGGClassifier):
+    def __init__(self, input_channels, num_classes, dropout_rate=0.5, return_skips=False, custom_network_config_path=None):
+        super().__init__(input_channels, num_classes, dropout_rate, return_skips, custom_network_config_path)
+        self.fc_hgglgg = nn.Linear(128,1)
+        self.fc_et = nn.Linear(128,1)
+        self.fc_ncrnet = nn.Linear(128,1)
         
+        
+    def forward(self, x):
+        x = self.encoder(x)
+        x = self.classifier(x)
+        hgglgg = self.fc_hgglgg(x)
+        et = self.fc_et(x)
+        ncrnet = self.fc_ncrnet(x)
+        return hgglgg, et, ncrnet
+       
 
 class ImageNetBratsClassifier(nn.Module):
     def __init__(self, num_classes, dropout_rate=0.5, return_skips=False, custom_network_config_path=None):
@@ -151,6 +166,45 @@ class JCSConvUnet(PlainConvUNet):
         return self.decoder(skips)
 
 
+class SingleModaConvUnet(PlainConvUNet):
+    def __init__(self,
+                 input_channels: int,
+                 n_stages: int,
+                 features_per_stage: Union[int, List[int], Tuple[int, ...]],
+                 conv_op: Type[_ConvNd],
+                 kernel_sizes: Union[int, List[int], Tuple[int, ...]],
+                 strides: Union[int, List[int], Tuple[int, ...]],
+                 n_conv_per_stage: Union[int, List[int], Tuple[int, ...]],
+                 num_classes: int,
+                 n_conv_per_stage_decoder: Union[int, Tuple[int, ...], List[int]],
+                 conv_bias: bool = False,
+                 norm_op: Union[None, Type[nn.Module]] = None,
+                 norm_op_kwargs: dict = None, # type: ignore
+                 dropout_op: Union[None, Type[_DropoutNd]] = None,
+                 dropout_op_kwargs: dict = None, # type: ignore
+                 nonlin: Union[None, Type[torch.nn.Module]] = None,
+                 nonlin_kwargs: dict = None, # type: ignore
+                 deep_supervision: bool = False,
+                 nonlin_first: bool = False
+                 ):
+        super().__init__(
+            input_channels, n_stages, features_per_stage, conv_op, kernel_sizes, strides, n_conv_per_stage,
+            num_classes, n_conv_per_stage_decoder, conv_bias, norm_op, norm_op_kwargs, dropout_op, 
+            dropout_op_kwargs, nonlin, nonlin_kwargs, deep_supervision, nonlin_first
+        )
+        # self.weights = nn.Parameter(torch.Tensor([1.0, 1.0, 1.0, 1.0]))
+        # self.bias = nn.Parameter(torch.Tensor([0.0, 0.0, 0.0, 0.0]))
+        self.mask = torch.zeros(4, 128, 128, 128).to(torch.device("cuda"))
+        self.mask[3] = 1 # for flair
+        self.mask = self.mask.view(1, 4, 128, 128, 128)
+    
+    def forward(self, x):
+        # x = x * self.weights.view(1, 4, 1, 1, 1) + self.bias.view(1, 4, 1, 1, 1)
+        x = x * self.mask
+        skips = self.encoder(x)
+        return self.decoder(skips)
+
+
 class InitWeights_He(object):
     def __init__(self, neg_slope=1e-2):
         self.neg_slope = neg_slope
@@ -191,8 +245,13 @@ def init_weights_from_pretrained_proxy_task_encoder(nnunet_model, custom_network
     
     try: 
         proxy_encoder_pretrained_path = custom_network_config["proxy_encoder_pretrained"]
-        if proxy_encoder_class == "HGGLGGClassifier":
-            pretrained_model = proxy_task_encoder_class(4, 2, return_skips=True)
+        
+        proxy_encoder_dict = {
+            "HGGLGGClassifier": proxy_task_encoder_class(4, 2, return_skips=True, custom_network_config_path=custom_network_config_path),
+            "HGGLGGMultiHeadClassifier": proxy_task_encoder_class(4, 2, return_skips=True, custom_network_config_path=custom_network_config_path),
+        }
+        
+        pretrained_model = proxy_encoder_dict[proxy_encoder_class]
         loaded = torch.load(proxy_encoder_pretrained_path, map_location=torch.device('cpu'))
         pretrained_model.load_state_dict(loaded, strict=False)
     except Exception as e:
@@ -201,8 +260,8 @@ def init_weights_from_pretrained_proxy_task_encoder(nnunet_model, custom_network
     
     del loaded
     pretrained_encoder = pretrained_model.encoder
-    nnunet_model.encoder = pretrained_encoder.to(torch.device('cuda'))
-    
+    nnunet_model.encoder = pretrained_encoder
+    nnunet_model.to(torch.device('cuda'))
     return nnunet_model, proxy_encoder_pretrained_path
 
 
