@@ -114,43 +114,15 @@ class JCSCombiner(nn.Module):
 if __name__ == "__main__":
     pass
     # # Load the classifier
-    # from nnunetv2.tuanluc_dev.network_initialization import HGGLGGClassifier
-    from nnunetv2.tuanluc_dev.get_network_from_plans_dev import get_encoder
-    # classifier = HGGLGGClassifier(4, 2, return_skips=True, custom_network_config_path="/home/dtpthao/workspace/nnUNet/nnunetv2/tuanluc_dev/configs/base.yaml")
-    # classifier.load_state_dict(torch.load("/home/dtpthao/workspace/nnUNet/nnunetv2/tuanluc_dev/results/hgg_lgg/checkpoints/model_55.pt"), strict=False)
-    # classifier.eval()
-    # classifier_encoder = classifier.encoder
+    # from nnunetv2.tuanluc_dev.get_network_from_plans_dev import get_encoder
 
     # # Process input using the classifier
-    temp = torch.randn(4, 4, 128, 128, 128).to(torch.device("cuda"))
-    # classifier_out = classifier_encoder(temp)
+    # temp = torch.randn(4, 4, 128, 128, 128).to(torch.device("cuda"))
+    # # classifier_out = classifier_encoder(temp)
 
     # # Load the segmenter
-    import os
-    # os.environ['nnUNet_raw'] = "/tmp/htluc/nnunet/nnUNet_raw/"
-    # os.environ['nnUNet_preprocessed'] = "/tmp/htluc/nnunet/nnUNet_preprocessed/"
-    # os.environ['nnUNet_results'] = "/tmp/htluc/nnunet/nnUNet_results/"
-    nnunet_trainer = get_encoder()
-    model = nnunet_trainer.network
-    model(temp)
-    # model = model.to(torch.device("cpu"))
-    # a = torch.load("/tmp/htluc/nnunet/nnUNet_results/Dataset032_BraTS2018/nnUNetTrainer_50epochs_tuanluc__nnUNetPlans__hypo_check_baseline/fold_0/checkpoint_best.pth")['network_weights']
-    # model.load_state_dict(a, strict=True)
-    # print(model.weights)
-    # print(model.bias)
-    # print(a.keys())
-    # print(a['network_weights']["weights"])
-    # print(a['network_weights']["bias"])
-    # segmenter_encoder = model.encoder
-    # weights = nn.Parameter(torch.Tensor([0.25, 0.25, 0.25, 0.25]))
-    # temp = temp * weights.view(1, 4, 1, 1, 1)
-    # segmenter_out = segmenter_encoder(temp)
-    # print(segmenter_out[0].shape)
-    
-    # fuse = nn.ModuleList()
-    # for idx, i in enumerate([32, 64, 128, 256, 320, 320]):
-    #     fuse.append(JCSCombiner(i))
-    #     print(fuse[idx](classifier_out[idx], segmenter_out[idx]).shape)
-    #     # print(count_parameters(fuse[idx]))
-    #     print_param_size(fuse[idx])
+    # import os
+    # nnunet_trainer = get_encoder()
+    # model = nnunet_trainer.network
+    # model(temp)
     

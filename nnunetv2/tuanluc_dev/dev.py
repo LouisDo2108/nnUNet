@@ -1,7 +1,7 @@
-import os
-os.environ["CUDA_LAUNCH_BLOCKING"] = "1"
-os.environ["CUDA_DEVICE_ORDER"]="PCI_BUS_ID"   
-os.environ["CUDA_VISIBLE_DEVICES"]= "1"
+# import os
+# os.environ["CUDA_LAUNCH_BLOCKING"] = "1"
+# os.environ["CUDA_DEVICE_ORDER"]="PCI_BUS_ID"   
+# os.environ["CUDA_VISIBLE_DEVICES"]= "1"
 
 from nnunetv2.tuanluc_dev.get_network_from_plans_dev import get_encoder
 from torchsummary import summary

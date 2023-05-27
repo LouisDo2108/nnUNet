@@ -112,10 +112,12 @@ def load_what_we_need(model_training_output_dir, use_folds, checkpoint_name, cus
             "Moda": get_network_from_plans_single_moda,
         }
         
-        if trainer_name in network_mapping:
-            network = network_mapping[trainer_name](plans_manager, dataset_json, configuration_manager,
-                                                    num_input_channels, deep_supervision=False, 
-                                                    custom_network_config_path=custom_network_config_path)
+        for k in network_mapping.keys():
+            if k in trainer_name:
+                network = network_mapping[k](plans_manager, dataset_json, configuration_manager,
+                                                        num_input_channels, deep_supervision=False, 
+                                                        custom_network_config_path=custom_network_config_path)
+                break
         else:
             network = get_network_from_plans(plans_manager, dataset_json, configuration_manager,
                                             num_input_channels, deep_supervision=False, 

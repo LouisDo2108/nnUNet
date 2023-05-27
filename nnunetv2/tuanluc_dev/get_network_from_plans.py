@@ -363,6 +363,5 @@ def get_network_from_plans_bn(plans_manager: PlansManager,
         model.apply(init_last_bn_before_add_to_0)
 
     if custom_network_config_path is not None:
-        customize_network(model, custom_network_config_path)
-        
+        customize_network(model, custom_network_config_path) 
     return model

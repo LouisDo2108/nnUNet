@@ -1,9 +1,7 @@
-import os
-import sys
-print(sys.path)
-os.environ["CUDA_LAUNCH_BLOCKING"] = "1"
-os.environ["CUDA_DEVICE_ORDER"]="PCI_BUS_ID"   
-os.environ["CUDA_VISIBLE_DEVICES"]= "1"
+# import os
+# os.environ["CUDA_LAUNCH_BLOCKING"] = "1"
+# os.environ["CUDA_DEVICE_ORDER"]="PCI_BUS_ID"   
+# os.environ["CUDA_VISIBLE_DEVICES"]= "1"
 
 from pathlib import Path
 from tqdm import tqdm
@@ -183,8 +181,9 @@ def train_imagenet_brats_resnet18_encoder():
 
 
 if __name__ == '__main__':
-    train_hgg_lgg_classifier(
-        output_folder="/home/dtpthao/workspace/nnUNet/nnunetv2/tuanluc_dev/results/hgg_lgg_acs_resnet18_encoder_all",
-        custom_network_config_path="/home/dtpthao/workspace/nnUNet/nnunetv2/tuanluc_dev/configs/hgg_lgg_acs_resnet18_encoder_all.yaml"
-    )
+    pass
+    # train_hgg_lgg_classifier(
+    #     output_folder="/home/dtpthao/workspace/nnUNet/nnunetv2/tuanluc_dev/results/hgg_lgg_acs_resnet18_encoder_all",
+    #     custom_network_config_path="/home/dtpthao/workspace/nnUNet/nnunetv2/tuanluc_dev/configs/hgg_lgg_acs_resnet18_encoder_all.yaml"
+    # )
     
