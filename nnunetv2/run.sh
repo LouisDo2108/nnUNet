@@ -7,23 +7,24 @@ nnUNet_preprocessed="/tmp/htluc/nnunet/nnUNet_preprocessed"; export nnUNet_prepr
 nnUNet_results="/tmp/htluc/nnunet/nnUNet_results"; export nnUNet_results
 
 eval "$(conda shell.bash hook)"
-conda activate brats
+conda activate cls_imagenet_brats
 
-cd /home/dtpthao/workspace/brats_projects/segmentations/nnUnet/nnunetv2
+cd /home/dtpthao/workspace/brats_projects/segmentations/nnUnet/nnunetv2/
 
+pwd
 
 train_test="test"
 image_folder=$([ "$train_test" == "train" ] && echo "imagesTr" || echo "imagesTs")
 # name="acs_resnet18_encoder_all_bnda"
 # name="acs_resnet18_encoder_bn"
-name="cbam_acs_resnet18_encoder"
+name="hgg_lgg_acs_resnet18_encoder"
 # nnUNetTrainer_50epochs_tuanluc
 # nnUNetTrainerDA_50epochs_tuanluc
 # nnUNetTrainerBN_50epochs_tuanluc
 # nnUNetTrainerBNDA_50epochs_tuanluc
 # trainer="nnUNetTrainerBN_50epochs_tuanluc"
-trainer="nnUNetTrainerCBAM_50epochs"
-config_path="/home/dtpthao/workspace/nnUNet/nnunetv2/tuanluc_dev/configs/cbam_acs_resnet18_encoder.yaml"
+trainer="nnUNetTrainer_50epochs_tuanluc"
+config_path="/home/dtpthao/workspace/nnUNet/nnunetv2/tuanluc_dev/configs/hgg_lgg_acs_resnet18_encoder.yaml"
 
 
 # 0. Dataset conversion
@@ -32,14 +33,14 @@ config_path="/home/dtpthao/workspace/nnUNet/nnunetv2/tuanluc_dev/configs/cbam_ac
 # 1. Plan + Preprocess
 # python experiment_planning/plan_and_preprocess_entrypoints.py \
 # -d 032 \
-# -c "3d_fullres" \
+# -c 3d_fullres \
 # -np 4 \
 # --verify_dataset_integrity \
 # --clean \
 # --verbose
 
 # 2. Train + Val fold 0
-python run/run_training_not_touch.py 032 $name 0 -num_gpus 1 \
+python run/run_training.py 032 $name 0 -num_gpus 1 \
 -tr $trainer \
 -custom_cfg_path $config_path
 

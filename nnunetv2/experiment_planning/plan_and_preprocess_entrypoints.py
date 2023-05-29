@@ -1,3 +1,8 @@
+import sys
+from pathlib import Path
+root = str(Path(__file__).resolve().parent.parent.parent)
+sys.path.append(root)
+
 from nnunetv2.configuration import default_num_processes
 from nnunetv2.experiment_planning.plan_and_preprocess_api import extract_fingerprints, plan_experiments, preprocess
 

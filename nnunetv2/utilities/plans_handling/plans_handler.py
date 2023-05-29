@@ -219,6 +219,7 @@ class PlansManager(object):
     @lru_cache(maxsize=10)
     def get_configuration(self, configuration_name: str):
         if configuration_name not in self.plans['configurations'].keys():
+            print(self.plans['configurations'])
             raise RuntimeError(f"Requested configuration {configuration_name} not found in plans. "
                                f"Available configurations: {list(self.plans['configurations'].keys())}")
 
