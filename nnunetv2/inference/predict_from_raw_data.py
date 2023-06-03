@@ -109,7 +109,9 @@ def load_what_we_need(model_training_output_dir, use_folds, checkpoint_name, cus
         network_mapping = {
             'BN': get_network_from_plans_bn,
             'JCS': get_network_from_plans_jcs,
-            "Moda": get_network_from_plans_single_moda,
+            'Moda': get_network_from_plans_single_moda,
+            'REUnet': get_network_from_plans_REUnet,
+            'CBAM': get_network_from_plans_cbam,
         }
         
         for k in network_mapping.keys():
@@ -184,6 +186,8 @@ def predict_from_raw_data(list_of_lists_or_source_folder: Union[str, List[List[s
     parameters, configuration_manager, inference_allowed_mirroring_axes, \
     plans_manager, dataset_json, network, trainer_name = \
         load_what_we_need(model_training_output_dir, use_folds, checkpoint_name, custom_network_config_path)
+    print(network)
+    # return
 
     # check if we need a prediction from the previous stage
     if configuration_manager.previous_stage_name is not None:

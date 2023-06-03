@@ -17,15 +17,15 @@ eval "$(conda shell.bash hook)"
 conda activate nnunet
 cd /home/dtpthao/workspace/nnUNet/nnunetv2
 
-name="jcs_baseline3"
+name="baseline_REUnet"
 # nnUNetTrainer_50epochs_tuanluc
 # nnUNetTrainerDA_50epochs_tuanluc
 # nnUNetTrainerBN_50epochs_tuanluc
 # nnUNetTrainerBNDA_50epochs_tuanluc
 # "nnUNetTrainerJCS_50epochs_tuanluc"
 # "nnUNetTrainerSingleModa_50epochs_tuanluc"
-trainer="nnUNetTrainerJCS_50epochs_tuanluc"
-config_path="/home/dtpthao/workspace/nnUNet/nnunetv2/tuanluc_dev/configs/jcs_base.yaml"
+trainer="nnUNetTrainerREUnet_50epochs_tuanluc"
+config_path="/home/dtpthao/workspace/nnUNet/nnunetv2/tuanluc_dev/configs/base.yaml"
 
 
 # 0. Dataset conversion
@@ -41,9 +41,10 @@ config_path="/home/dtpthao/workspace/nnUNet/nnunetv2/tuanluc_dev/configs/jcs_bas
 # --verbose
 
 # 2. Train + Val fold 0
-python run/run_training.py 032 $name 0 -num_gpus 1 \
--tr $trainer \
--custom_cfg_path $config_path
+# python run/run_training.py 032 $name 0 -num_gpus 1 \
+# -tr $trainer \
+# -custom_cfg_path $config_path
+# --c # continue training
 
 # (Optional) 2.1  find best config (Only viable after training all 5 folds)
 # python evaluation/find_best_configuration.py 032 -c 3d_fullres_bs4_batch_dice -f 0 --disable_ensembling
@@ -52,21 +53,21 @@ python run/run_training.py 032 $name 0 -num_gpus 1 \
 # 3. Test (nnUnet format)
 # The -o (output folder) should locate in /home/dtpthao/workspace/nnUNet/env/results/Dataset032_BraTS2018/{something}
 
-train_test="test"
-image_folder=$([ "$train_test" == "train" ] && echo "imagesTr" || echo "imagesTs")
-python /home/dtpthao/workspace/nnUNet/nnunetv2/inference/predict_from_raw_data.py \
--i /home/dtpthao/workspace/nnUNet/env/raw/Dataset032_BraTS2018/$image_folder \
--o /home/dtpthao/workspace/nnUNet/env/results/Dataset032_BraTS2018/$name/fold_0/$train_test \
--d 032 \
--tr $trainer \
--c $name \
--f 0 \
--custom_cfg_path $config_path
+# train_test="test"
+# image_folder=$([ "$train_test" == "train" ] && echo "imagesTr" || echo "imagesTs")
+# python /home/dtpthao/workspace/nnUNet/nnunetv2/inference/predict_from_raw_data.py \
+# -i /home/dtpthao/workspace/nnUNet/env/raw/Dataset032_BraTS2018/$image_folder \
+# -o /home/dtpthao/workspace/nnUNet/env/results/Dataset032_BraTS2018/$name/fold_0/$train_test \
+# -d 032 \
+# -tr $trainer \
+# -c $name \
+# -f 0 \
+# -custom_cfg_path $config_path
 
-# 4. Convert back to BraTS2018 format
-python dataset_conversion/Dataset032_BraTS2018.py \
---exp-name $name \
---train $train_test
+# # 4. Convert back to BraTS2018 format
+# python dataset_conversion/Dataset032_BraTS2018.py \
+# --exp-name $name \
+# --train $train_test
 
 ### Train set
 # 3. Test (nnUnet format)

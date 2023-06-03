@@ -1,6 +1,6 @@
 #!/bin/bash
 export CUDA_DEVICE_ORDER=PCI_BUS_ID # Change according to GPU availability
-export CUDA_VISIBLE_DEVICES=1 # Change according to GPU availability
+export CUDA_VISIBLE_DEVICES=0 # Change according to GPU availability
 export nnUNet_n_proc_DA=12 # Change according to CPU availability, default is 12
 nnUNet_raw="/tmp/htluc/nnunet/nnUNet_raw/"; export nnUNet_raw
 nnUNet_preprocessed="/tmp/htluc/nnunet/nnUNet_preprocessed"; export nnUNet_preprocessed
@@ -10,15 +10,17 @@ eval "$(conda shell.bash hook)"
 conda activate nnunet
 cd /home/dtpthao/workspace/nnUNet/nnunetv2
 
-name="acs_resnet18_encoder_nnunet_init_bn_3"
+name="cbam_baseline_everystage3"
 # nnUNetTrainer_50epochs_tuanluc
 # nnUNetTrainerDA_50epochs_tuanluc
 # nnUNetTrainerBN_50epochs_tuanluc
 # nnUNetTrainerBNDA_50epochs_tuanluc
-# "nnUNetTrainerJCS_50epochs_tuanluc"
-# "nnUNetTrainerSingleModa_50epochs_tuanluc"
-trainer="nnUNetTrainerBN_50epochs_tuanluc"
-config_path="/home/dtpthao/workspace/nnUNet/nnunetv2/tuanluc_dev/configs/acs_resnet18_encoder.yaml"
+# nnUNetTrainerJCS_50epochs_tuanluc
+# nnUNetTrainerSingleModa_50epochs_tuanluc
+# nnUNetTrainerREUnet_50epochs_tuanluc
+# nnUNetTrainerCBAM_50epochs_tuanluc
+trainer="nnUNetTrainerCBAM_50epochs_tuanluc"
+config_path="/home/dtpthao/workspace/nnUNet/nnunetv2/tuanluc_dev/configs/base.yaml"
 
 
 # 0. Dataset conversion
@@ -46,7 +48,26 @@ config_path="/home/dtpthao/workspace/nnUNet/nnunetv2/tuanluc_dev/configs/acs_res
 # 3. Test (nnUnet format)
 # The -o (output folder) should locate in /home/dtpthao/workspace/nnUNet/env/results/Dataset032_BraTS2018/{something}
 
-# train_test="test"
+train_test="test"
+image_folder=$([ "$train_test" == "train" ] && echo "imagesTr" || echo "imagesTs")
+python /home/dtpthao/workspace/nnUNet/nnunetv2/inference/predict_from_raw_data.py \
+-i /tmp/htluc/nnunet/nnUNet_raw/Dataset032_BraTS2018/$image_folder \
+-o /home/dtpthao/workspace/nnUNet/env/results/Dataset032_BraTS2018/$name/fold_0/$train_test \
+-d 032 \
+-tr $trainer \
+-c $name \
+-f 0 \
+-custom_cfg_path $config_path
+
+# 4. Convert back to BraTS2018 format
+# python dataset_conversion/Dataset032_BraTS2018.py \
+# --exp-name $name \
+# --train $train_test
+
+### Train set
+# 3. Test (nnUnet format)
+# The -o (output folder) should locate in /home/dtpthao/workspace/nnUNet/env/results/Dataset032_BraTS2018/{something}
+# train_test="train"
 # image_folder=$([ "$train_test" == "train" ] && echo "imagesTr" || echo "imagesTs")
 # python /home/dtpthao/workspace/nnUNet/nnunetv2/inference/predict_from_raw_data.py \
 # -i /tmp/htluc/nnunet/nnUNet_raw/Dataset032_BraTS2018/$image_folder \
@@ -61,22 +82,3 @@ config_path="/home/dtpthao/workspace/nnUNet/nnunetv2/tuanluc_dev/configs/acs_res
 # python dataset_conversion/Dataset032_BraTS2018.py \
 # --exp-name $name \
 # --train $train_test
-
-### Train set
-# 3. Test (nnUnet format)
-# The -o (output folder) should locate in /home/dtpthao/workspace/nnUNet/env/results/Dataset032_BraTS2018/{something}
-train_test="train"
-image_folder=$([ "$train_test" == "train" ] && echo "imagesTr" || echo "imagesTs")
-python /home/dtpthao/workspace/nnUNet/nnunetv2/inference/predict_from_raw_data.py \
--i /tmp/htluc/nnunet/nnUNet_raw/Dataset032_BraTS2018/$image_folder \
--o /home/dtpthao/workspace/nnUNet/env/results/Dataset032_BraTS2018/$name/fold_0/$train_test \
--d 032 \
--tr $trainer \
--c $name \
--f 0 \
--custom_cfg_path $config_path
-
-# 4. Convert back to BraTS2018 format
-python dataset_conversion/Dataset032_BraTS2018.py \
---exp-name $name \
---train $train_test
