@@ -7,6 +7,8 @@ from torch import nn
 from nnunetv2.tuanluc_dev.get_network_from_plans import load_acsconv_dict, replace_conv3d_and_load_weight_from_acsconv, read_custom_network_config
 from nnunetv2.tuanluc_dev.network_initialization import init_weights_from_pretrained_proxy_task_encoder
 
+from nnunetv2.models.unet_encoder import CBAMPlainConvUNet
+
 def get_network_from_plans(plans_manager: PlansManager,
                            dataset_json: dict,
                            configuration_manager: ConfigurationManager,
@@ -152,11 +154,9 @@ def get_network_from_plans_CBAM(plans_manager: PlansManager,
     label_manager = plans_manager.get_label_manager(dataset_json)
 
     segmentation_network_class_name = configuration_manager.UNet_class_name
-    print(configuration_manager)
-    print(segmentation_network_class_name)
-    exit(0)
+    
     mapping = {
-        'PlainConvUNet': PlainConvUNet,
+        'PlainConvUNet': CBAMPlainConvUNet,
         'ResidualEncoderUNet': ResidualEncoderUNet
     }
     kwargs = {

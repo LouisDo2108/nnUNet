@@ -41,13 +41,13 @@ class BRATSDataset(Dataset):
 
         
         if self.train:
-            for filename in self.dataset_json["train"][:4]:
+            for filename in self.dataset_json["train"]:
                 self.paths.append(self.preprocessed_data_path + "/" + filename + ".npy")
                 self.labels.append(self.label_dict[filename])
                 self.masks_name.append(mask_dict[filename])
             print("Train LGG: ", len(np.array(self.labels)[np.array(self.labels) == 0]))
         else:
-            for filename in self.dataset_json["val"][:4]:
+            for filename in self.dataset_json["val"]:
                 self.paths.append(self.preprocessed_data_path + "/" + filename + ".npy")
                 self.labels.append(self.label_dict[filename])
                 self.masks_name.append(mask_dict[filename])

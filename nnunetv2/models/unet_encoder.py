@@ -13,6 +13,7 @@ from dynamic_network_architectures.building_blocks.helper import convert_conv_op
 
 from dynamic_network_architectures.architectures.unet import PlainConvUNet
 from .cbam import CBAM
+from .nnunet_cbam_encoder import CBAMPlainConvEncoder
 
 class CBAMPlainConvUNet(PlainConvUNet):
     def __init__(self,
@@ -50,18 +51,17 @@ class CBAMPlainConvUNet(PlainConvUNet):
                                                                 f"stages, so it should have {n_stages - 1} entries. " \
                                                                 f"n_conv_per_stage_decoder: {n_conv_per_stage_decoder}"
         
-        self.cbam = CBAM(gate_channels=input_channels)
+        # self.cbam = CBAM(gate_channels=input_channels)
 
-        self.encoder = PlainConvEncoder(input_channels, n_stages, features_per_stage, conv_op, kernel_sizes, strides,
+        self.encoder = CBAMPlainConvEncoder(input_channels, n_stages, features_per_stage, conv_op, kernel_sizes, strides,
                                         n_conv_per_stage, conv_bias, norm_op, norm_op_kwargs, dropout_op,
                                         dropout_op_kwargs, nonlin, nonlin_kwargs, return_skips=True,
                                         nonlin_first=nonlin_first)
-        self.latent_cbam = CBAM(124)
+
         self.decoder = UNetDecoder(self.encoder, num_classes, n_conv_per_stage_decoder, deep_supervision,
                                    nonlin_first=nonlin_first)
 
     def forward(self, x):
-        x = self.cbam(x)
         skips = self.encoder(x)
         return self.decoder(skips)
 

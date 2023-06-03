@@ -61,7 +61,9 @@ class HGGLGGClassifier(nn.Module):
         et = self.fc_et(x)
         ncrnet = self.fc_ncrnet(x)
         return hgglgg, et, ncrnet
-        
+
+
+
 
 
 if __name__ == "__main__":
