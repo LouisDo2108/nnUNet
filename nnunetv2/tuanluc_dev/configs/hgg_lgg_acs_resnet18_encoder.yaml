@@ -10,4 +10,4 @@ acsconv: True
 acs_pretrained: resnet18
 replace_all: False
 proxy_encoder_class: HGGLGGClassifier
-proxy_encoder_pretrained: "/home/dtpthao/workspace/nnUNet/nnunetv2/tuanluc_dev/results/hgg_lgg_acs_resnet18_encoder_all/checkpoints/model_20.pt"
+proxy_encoder_pretrained: "/home/dtpthao/workspace/nnUNet/nnunetv2/tuanluc_dev/results/hgg_lgg_acs_resnet18_encoder_all/checkpoints/model_80.pt"

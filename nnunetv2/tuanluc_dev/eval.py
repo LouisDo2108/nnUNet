@@ -1,8 +1,8 @@
 import torch
 import torch.nn as nn
 import numpy as np
-from nnunetv2.tuanluc_dev.dataloaders import get_dataloader
-from nnunetv2.tuanluc_dev.encoder import HGGLGGClassifier
+from nnunetv2.tuanluc_dev.dataloaders import get_BRATSDataset_dataloader
+from nnunetv2.tuanluc_dev.network_initialization import HGGLGGClassifier
 from sklearn.metrics import accuracy_score, precision_score, recall_score, f1_score, roc_auc_score
 
 
@@ -78,24 +78,24 @@ def compute_classification_metrics(model, data_loader, device):
 
 
 if __name__ == '__main__':
+    pass
+    # train_loader, val_loader = get_BRATSDataset_dataloader(
+    #     root_dir='/home/dtpthao/workspace/brats_projects/datasets/BraTS_2018/train',
+    #     batch_size=4, num_workers=4)
     
-    train_loader, val_loader = get_dataloader(
-        root_dir='/home/dtpthao/workspace/brats_projects/datasets/BraTS_2018/train',
-        batch_size=4, num_workers=4)
     
+    # checkpoint_path = "/home/dtpthao/workspace/nnUNet/nnunetv2/tuanluc_dev/results/hgg_lgg/checkpoints/model_5.pt"
+    # device = torch.device("cuda" if torch.cuda.is_available() else "cpu")
     
-    checkpoint_path = "/home/dtpthao/workspace/nnUNet/nnunetv2/tuanluc_dev/results/hgg_lgg/checkpoints/model_5.pt"
-    device = torch.device("cuda" if torch.cuda.is_available() else "cpu")
+    # model = HGGLGGClassifier(4, 2).to(device)
+    # model.load_state_dict(torch.load(checkpoint_path, map_location=torch.device(device)))
+    # train_metrics = compute_classification_metrics(model, train_loader, device)
+    # val_metrics = compute_classification_metrics(model, val_loader, device)
     
-    model = HGGLGGClassifier(4, 2).to(device)
-    model.load_state_dict(torch.load(checkpoint_path, map_location=torch.device(device)))
-    train_metrics = compute_classification_metrics(model, train_loader, device)
-    val_metrics = compute_classification_metrics(model, val_loader, device)
+    # print("Train")
+    # for k, v in train_metrics.items():
+    #     print(f"{k}: {v}")
     
-    print("Train")
-    for k, v in train_metrics.items():
-        print(f"{k}: {v}")
-    
-    print("Val")
-    for k, v in val_metrics.items():
-        print(f"{k}: {v}")
+    # print("Val")
+    # for k, v in val_metrics.items():
+    #     print(f"{k}: {v}")

@@ -29,6 +29,7 @@ def get_trainer_from_args(dataset_name_or_id: Union[int, str],
                           device: torch.device = torch.device('cuda'),
                           custom_network_config_path: str = None,):
     # load nnunet class and do sanity checks
+    print("Trainer name: ", trainer_name)
     nnunet_trainer = recursive_find_python_class(join(nnunetv2.__path__[0], "training", "nnUNetTrainer"),
                                                 trainer_name, 'nnunetv2.training.nnUNetTrainer')
     if nnunet_trainer is None:

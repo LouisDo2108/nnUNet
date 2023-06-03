@@ -28,6 +28,8 @@ from nnunetv2.utilities.label_handling.label_handling import determine_num_input
 from nnunetv2.utilities.plans_handling.plans_handler import PlansManager, ConfigurationManager
 from nnunetv2.utilities.utils import create_lists_from_splitted_dataset_folder
 
+from nnunetv2.tuanluc_dev.get_network_from_plans import *
+
 
 class PreprocessAdapter(DataLoader):
     def __init__(self, list_of_lists: List[List[str]], list_of_segs_from_prev_stage_files: Union[List[None], List[str]],
@@ -103,17 +105,21 @@ def load_what_we_need(model_training_output_dir, use_folds, checkpoint_name, cus
         network = trainer_class.build_network_architecture(plans_manager, dataset_json, configuration_manager, 
                                                        num_input_channels, enable_deep_supervision=False)
     else:
-        from nnunetv2.tuanluc_dev.get_network_from_plans import (
-            get_network_from_plans, get_network_from_plans_bn, get_network_from_plans_jcs
-        )
-        if 'BN' in trainer_name:
-            network = get_network_from_plans_bn(plans_manager, dataset_json, configuration_manager,
-                                            num_input_channels, deep_supervision=False, 
-                                            custom_network_config_path=custom_network_config_path)
-        elif 'JCS' in trainer_name:
-            network = get_network_from_plans_jcs(plans_manager, dataset_json, configuration_manager,
-                                            num_input_channels, deep_supervision=False, 
-                                            custom_network_config_path=custom_network_config_path)
+        
+        network_mapping = {
+            'BN': get_network_from_plans_bn,
+            'JCS': get_network_from_plans_jcs,
+            'Moda': get_network_from_plans_single_moda,
+            'REUnet': get_network_from_plans_REUnet,
+            'CBAM': get_network_from_plans_cbam,
+        }
+        
+        for k in network_mapping.keys():
+            if k in trainer_name:
+                network = network_mapping[k](plans_manager, dataset_json, configuration_manager,
+                                                        num_input_channels, deep_supervision=False, 
+                                                        custom_network_config_path=custom_network_config_path)
+                break
         else:
             network = get_network_from_plans(plans_manager, dataset_json, configuration_manager,
                                             num_input_channels, deep_supervision=False, 
@@ -180,6 +186,8 @@ def predict_from_raw_data(list_of_lists_or_source_folder: Union[str, List[List[s
     parameters, configuration_manager, inference_allowed_mirroring_axes, \
     plans_manager, dataset_json, network, trainer_name = \
         load_what_we_need(model_training_output_dir, use_folds, checkpoint_name, custom_network_config_path)
+    print(network)
+    # return
 
     # check if we need a prediction from the previous stage
     if configuration_manager.previous_stage_name is not None:

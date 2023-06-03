@@ -1,9 +1,7 @@
-import os
-import sys
-print(sys.path)
-os.environ["CUDA_LAUNCH_BLOCKING"] = "1"
-os.environ["CUDA_DEVICE_ORDER"]="PCI_BUS_ID"   
-os.environ["CUDA_VISIBLE_DEVICES"]= "1"
+# import os
+# os.environ["CUDA_LAUNCH_BLOCKING"] = "1"
+# os.environ["CUDA_DEVICE_ORDER"]="PCI_BUS_ID"   
+# os.environ["CUDA_VISIBLE_DEVICES"]= "1"
 
 from pathlib import Path
 from tqdm import tqdm
@@ -161,10 +159,9 @@ def log_metrics(output_folder, epoch, loss, predictions, true_labels, train=Fals
 def train_hgg_lgg_classifier(output_folder, custom_network_config_path):
     train_loader, val_loader = get_BRATSDataset_dataloader(
         root_dir='/home/dtpthao/workspace/brats_projects/datasets/BraTS_2018/train',
-        batch_size=4, num_workers=8)
+        batch_size=4, num_workers=16)
     
     model = HGGLGGClassifier(4, 2, custom_network_config_path=custom_network_config_path).to(torch.device('cuda'))
-    # summary(model, (4, 128, 128, 128))
     train(model, train_loader, val_loader, 
           output_folder=output_folder, 
           num_epochs=100, learning_rate=0.001)
