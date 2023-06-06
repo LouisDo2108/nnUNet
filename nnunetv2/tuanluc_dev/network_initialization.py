@@ -1,5 +1,6 @@
 import torch
 from torch import nn
+import torch.nn.functional as F
 import timm
 
 from collections import defaultdict
@@ -23,7 +24,7 @@ from dynamic_network_architectures.building_blocks.simple_conv_blocks import Sta
 from dynamic_network_architectures.building_blocks.plain_conv_encoder import PlainConvEncoder
 from dynamic_network_architectures.building_blocks.helper import maybe_convert_scalar_to_list, get_matching_pool_op
 from dynamic_network_architectures.building_blocks.unet_decoder import UNetDecoder
-
+from dynamic_network_architectures.building_blocks.helper import convert_conv_op_to_dim
 
 class HGGLGGClassifier(nn.Module):
     def __init__(self, input_channels, num_classes, dropout_rate=0.5, return_skips=False, custom_network_config_path=None):
@@ -212,8 +213,8 @@ class BasicConv(nn.Module):
     def __init__(self, in_planes, out_planes, kernel_size, stride=1, padding=0, dilation=1, groups=1, relu=True, bn=True, bias=False):
         super(BasicConv, self).__init__()
         self.out_channels = out_planes
-        self.conv = nn.Conv2d(in_planes, out_planes, kernel_size=kernel_size, stride=stride, padding=padding, dilation=dilation, groups=groups, bias=bias)
-        self.bn = nn.BatchNorm2d(out_planes,eps=1e-5, momentum=0.01, affine=True) if bn else None
+        self.conv = nn.Conv3d(in_planes, out_planes, kernel_size=kernel_size, stride=stride, padding=padding, dilation=dilation, groups=groups, bias=bias)
+        self.bn = nn.BatchNorm3d(out_planes, eps=1e-5, momentum=0.01, affine=True) if bn else None
         self.relu = nn.ReLU() if relu else None
 
     def forward(self, x):
@@ -224,60 +225,60 @@ class BasicConv(nn.Module):
             x = self.relu(x)
         return x
 
-
 class Flatten(nn.Module):
     def forward(self, x):
         return x.view(x.size(0), -1)
 
-
 class ChannelGate(nn.Module):
-    def __init__(self, gate_channels, reduction_ratio=16, pool_types=['avg', 'max']):
+    def __init__(self, gate_channels, reduction_ratio=2, pool_types=['avg', 'max']):
         super(ChannelGate, self).__init__()
+        latten = 16
         self.gate_channels = gate_channels
         self.mlp = nn.Sequential(
-            Flatten(),
-            nn.Linear(gate_channels, gate_channels // reduction_ratio),
+            nn.Flatten(),
+            nn.Linear(gate_channels, latten),
             nn.ReLU(),
-            nn.Linear(gate_channels // reduction_ratio, gate_channels)
-            )
+            nn.Linear(latten, gate_channels)
+        )
+
         self.pool_types = pool_types
+
     def forward(self, x):
         channel_att_sum = None
         for pool_type in self.pool_types:
-            if pool_type=='avg':
-                avg_pool = F.avg_pool2d( x, (x.size(2), x.size(3)), stride=(x.size(2), x.size(3)))
-                channel_att_raw = self.mlp( avg_pool )
-            elif pool_type=='max':
-                max_pool = F.max_pool2d( x, (x.size(2), x.size(3)), stride=(x.size(2), x.size(3)))
-                channel_att_raw = self.mlp( max_pool )
-            elif pool_type=='lp':
-                lp_pool = F.lp_pool2d( x, 2, (x.size(2), x.size(3)), stride=(x.size(2), x.size(3)))
-                channel_att_raw = self.mlp( lp_pool )
-            elif pool_type=='lse':
+            if pool_type == 'avg':
+                # avg_pool = F.avg_pool3d(x, (x.size(2), x.size(3), x.size(4)), stride=(x.size(2), x.size(3), x.size(4)))
+                avg_pool = F.adaptive_avg_pool3d(x, (1, 1, 1))
+                channel_att_raw = self.mlp(avg_pool)
+            elif pool_type == 'max':
+                max_pool = F.max_pool3d(x, (x.size(2), x.size(3), x.size(4)), stride=(x.size(2), x.size(3), x.size(4)))
+                channel_att_raw = self.mlp(max_pool)
+            elif pool_type == 'lp':
+                lp_pool = F.lp_pool3d(x, 2, (x.size(2), x.size(3), x.size(4)), stride=(x.size(2), x.size(3), x.size(4)))
+                channel_att_raw = self.mlp(lp_pool)
+            elif pool_type == 'lse':
                 # LSE pool only
-                lse_pool = logsumexp_2d(x)
-                channel_att_raw = self.mlp( lse_pool )
+                lse_pool = logsumexp_3d(x)
+                channel_att_raw = self.mlp(lse_pool)
 
             if channel_att_sum is None:
                 channel_att_sum = channel_att_raw
             else:
                 channel_att_sum = channel_att_sum + channel_att_raw
 
-        scale = F.sigmoid( channel_att_sum ).unsqueeze(2).unsqueeze(3).expand_as(x)
+        scale = F.sigmoid(channel_att_sum)
+        scale = scale.unsqueeze(-1).unsqueeze(-1).unsqueeze(-1).expand_as(x)
         return x * scale
 
-
-def logsumexp_2d(tensor):
+def logsumexp_3d(tensor):
     tensor_flatten = tensor.view(tensor.size(0), tensor.size(1), -1)
     s, _ = torch.max(tensor_flatten, dim=2, keepdim=True)
     outputs = s + (tensor_flatten - s).exp().sum(dim=2, keepdim=True).log()
     return outputs
 
-
 class ChannelPool(nn.Module):
     def forward(self, x):
-        return torch.cat( (torch.max(x,1)[0].unsqueeze(1), torch.mean(x,1).unsqueeze(1)), dim=1 )
-
+        return torch.cat((torch.max(x, 1)[0].unsqueeze(1), torch.mean(x, 1).unsqueeze(1)), dim=1)
 
 class SpatialGate(nn.Module):
     def __init__(self):
@@ -285,25 +286,27 @@ class SpatialGate(nn.Module):
         kernel_size = 7
         self.compress = ChannelPool()
         self.spatial = BasicConv(2, 1, kernel_size, stride=1, padding=(kernel_size-1) // 2, relu=False)
+
     def forward(self, x):
         x_compress = self.compress(x)
         x_out = self.spatial(x_compress)
-        scale = F.sigmoid(x_out) # broadcasting
+        scale = F.sigmoid(x_out)  # broadcasting
         return x * scale
-
 
 class CBAM(nn.Module):
     def __init__(self, gate_channels, reduction_ratio=16, pool_types=['avg', 'max'], no_spatial=False):
         super(CBAM, self).__init__()
         self.ChannelGate = ChannelGate(gate_channels, reduction_ratio, pool_types)
-        self.no_spatial=no_spatial
+        self.no_spatial = no_spatial
         if not no_spatial:
             self.SpatialGate = SpatialGate()
+
     def forward(self, x):
         x_out = self.ChannelGate(x)
         if not self.no_spatial:
             x_out = self.SpatialGate(x_out)
         return x_out
+
 
 
 class CBAMPlainConvEncoder(nn.Module):
@@ -404,6 +407,80 @@ class CBAMPlainConvEncoder(nn.Module):
                 output += self.stages[s].compute_conv_feature_map_size(input_size)
             input_size = [i // j for i, j in zip(input_size, self.strides[s])]
         return output
+    
+class CBAMEveryStagePlainConvUNet(PlainConvUNet):
+    def __init__(self,
+                 input_channels: int,
+                 n_stages: int,
+                 features_per_stage: Union[int, List[int], Tuple[int, ...]],
+                 conv_op: Type[_ConvNd],
+                 kernel_sizes: Union[int, List[int], Tuple[int, ...]],
+                 strides: Union[int, List[int], Tuple[int, ...]],
+                 n_conv_per_stage: Union[int, List[int], Tuple[int, ...]],
+                 num_classes: int,
+                 n_conv_per_stage_decoder: Union[int, Tuple[int, ...], List[int]],
+                 conv_bias: bool = False,
+                 norm_op: Union[None, Type[nn.Module]] = None,
+                 norm_op_kwargs: dict = None,
+                 dropout_op: Union[None, Type[_DropoutNd]] = None,
+                 dropout_op_kwargs: dict = None,
+                 nonlin: Union[None, Type[torch.nn.Module]] = None,
+                 nonlin_kwargs: dict = None,
+                 deep_supervision: bool = False,
+                 nonlin_first: bool = False):
+        """
+        nonlin_first: if True you get conv -> nonlin -> norm. Else it's conv -> norm -> nonlin
+        """
+        super().__init__(input_channels, 
+                         n_stages, 
+                         features_per_stage, 
+                         conv_op,
+                         kernel_sizes,
+                         strides,
+                         n_conv_per_stage,
+                         num_classes,
+                         n_conv_per_stage_decoder,
+                         conv_bias,
+                         norm_op,
+                         norm_op_kwargs,
+                         dropout_op,
+                         dropout_op_kwargs,
+                         nonlin,
+                         nonlin_kwargs,
+                         deep_supervision,
+                         nonlin_first)
+        if isinstance(n_conv_per_stage, int):
+            n_conv_per_stage = [n_conv_per_stage] * n_stages
+        if isinstance(n_conv_per_stage_decoder, int):
+            n_conv_per_stage_decoder = [n_conv_per_stage_decoder] * (n_stages - 1)
+        assert len(n_conv_per_stage) == n_stages, "n_conv_per_stage must have as many entries as we have " \
+                                                  f"resolution stages. here: {n_stages}. " \
+                                                  f"n_conv_per_stage: {n_conv_per_stage}"
+        assert len(n_conv_per_stage_decoder) == (n_stages - 1), "n_conv_per_stage_decoder must have one less entries " \
+                                                                f"as we have resolution stages. here: {n_stages} " \
+                                                                f"stages, so it should have {n_stages - 1} entries. " \
+                                                                f"n_conv_per_stage_decoder: {n_conv_per_stage_decoder}"
+        
+        self.cbam = CBAM(gate_channels=input_channels)
+
+        self.encoder = CBAMPlainConvEncoder(input_channels, n_stages, features_per_stage, conv_op, kernel_sizes, strides,
+                                        n_conv_per_stage, conv_bias, norm_op, norm_op_kwargs, dropout_op,
+                                        dropout_op_kwargs, nonlin, nonlin_kwargs, return_skips=True,
+                                        nonlin_first=nonlin_first)
+
+        self.decoder = UNetDecoder(self.encoder, num_classes, n_conv_per_stage_decoder, deep_supervision,
+                                   nonlin_first=nonlin_first)
+
+    def forward(self, x):
+        x = self.cbam(x)
+        skips = self.encoder(x)
+        return self.decoder(skips)
+
+    def compute_conv_feature_map_size(self, input_size):
+        assert len(input_size) == convert_conv_op_to_dim(self.encoder.conv_op), "just give the image size without color/feature channels or " \
+                                                            "batch channel. Do not give input_size=(b, c, x, y(, z)). " \
+                                                            "Give input_size=(x, y(, z))!"
+        return self.encoder.compute_conv_feature_map_size(input_size) + self.decoder.compute_conv_feature_map_size(input_size)
 
 
 class CBAMPlainConvUNet(PlainConvUNet):
@@ -429,11 +506,24 @@ class CBAMPlainConvUNet(PlainConvUNet):
         """
         nonlin_first: if True you get conv -> nonlin -> norm. Else it's conv -> norm -> nonlin
         """
-        super().__init__(
-            input_channels, n_stages, features_per_stage, conv_op, kernel_sizes, strides, n_conv_per_stage,
-            num_classes, n_conv_per_stage_decoder, conv_bias, norm_op, norm_op_kwargs, dropout_op, 
-            dropout_op_kwargs, nonlin, nonlin_kwargs, deep_supervision, nonlin_first
-        )
+        super().__init__(input_channels, 
+                         n_stages, 
+                         features_per_stage, 
+                         conv_op,
+                         kernel_sizes,
+                         strides,
+                         n_conv_per_stage,
+                         num_classes,
+                         n_conv_per_stage_decoder,
+                         conv_bias,
+                         norm_op,
+                         norm_op_kwargs,
+                         dropout_op,
+                         dropout_op_kwargs,
+                         nonlin,
+                         nonlin_kwargs,
+                         deep_supervision,
+                         nonlin_first)
         if isinstance(n_conv_per_stage, int):
             n_conv_per_stage = [n_conv_per_stage] * n_stages
         if isinstance(n_conv_per_stage_decoder, int):
@@ -446,9 +536,9 @@ class CBAMPlainConvUNet(PlainConvUNet):
                                                                 f"stages, so it should have {n_stages - 1} entries. " \
                                                                 f"n_conv_per_stage_decoder: {n_conv_per_stage_decoder}"
         
-        # self.cbam = CBAM(gate_channels=input_channels)
+        self.cbam = CBAM(gate_channels=input_channels)
 
-        self.encoder = CBAMPlainConvEncoder(input_channels, n_stages, features_per_stage, conv_op, kernel_sizes, strides,
+        self.encoder = PlainConvEncoder(input_channels, n_stages, features_per_stage, conv_op, kernel_sizes, strides,
                                         n_conv_per_stage, conv_bias, norm_op, norm_op_kwargs, dropout_op,
                                         dropout_op_kwargs, nonlin, nonlin_kwargs, return_skips=True,
                                         nonlin_first=nonlin_first)
@@ -457,6 +547,7 @@ class CBAMPlainConvUNet(PlainConvUNet):
                                    nonlin_first=nonlin_first)
 
     def forward(self, x):
+        x = self.cbam(x)
         skips = self.encoder(x)
         return self.decoder(skips)
 
