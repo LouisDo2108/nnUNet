@@ -134,7 +134,7 @@ def customize_network(model, custom_network_config_path):
     print("--------------------------------------------------\n")
 
 # Default nnUNet extended with custom config file
-def get_network_from_plans_CBAM(plans_manager: PlansManager,
+def get_network_from_plans_cbam(plans_manager: PlansManager,
                            dataset_json: dict,
                            configuration_manager: ConfigurationManager,
                            num_input_channels: int,

@@ -116,8 +116,8 @@ class nnUNetTrainerCBAM_50epochs(nnUNetTrainer):
         should be generated. label_manager takes care of all that for you.)
 
         """
-        from nnunetv2.utilities.get_network_from_plans import get_network_from_plans_CBAM
-        return get_network_from_plans_CBAM(plans_manager, dataset_json, configuration_manager,
+        from nnunetv2.utilities.get_network_from_plans import get_network_from_plans_cbam
+        return get_network_from_plans_cbam(plans_manager, dataset_json, configuration_manager,
                                       num_input_channels, deep_supervision=enable_deep_supervision, 
                                       custom_network_config_path=self.custom_network_config_path)
 

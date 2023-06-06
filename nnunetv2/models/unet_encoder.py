@@ -38,7 +38,24 @@ class CBAMPlainConvUNet(PlainConvUNet):
         """
         nonlin_first: if True you get conv -> nonlin -> norm. Else it's conv -> norm -> nonlin
         """
-        super().__init__()
+        super().__init__(input_channels, 
+                         n_stages, 
+                         features_per_stage, 
+                         conv_op,
+                         kernel_sizes,
+                         strides,
+                         n_conv_per_stage,
+                         num_classes,
+                         n_conv_per_stage_decoder,
+                         conv_bias,
+                         norm_op,
+                         norm_op_kwargs,
+                         dropout_op,
+                         dropout_op_kwargs,
+                         nonlin,
+                         nonlin_kwargs,
+                         deep_supervision,
+                         nonlin_first)
         if isinstance(n_conv_per_stage, int):
             n_conv_per_stage = [n_conv_per_stage] * n_stages
         if isinstance(n_conv_per_stage_decoder, int):
@@ -51,9 +68,9 @@ class CBAMPlainConvUNet(PlainConvUNet):
                                                                 f"stages, so it should have {n_stages - 1} entries. " \
                                                                 f"n_conv_per_stage_decoder: {n_conv_per_stage_decoder}"
         
-        # self.cbam = CBAM(gate_channels=input_channels)
+        self.cbam = CBAM(gate_channels=input_channels)
 
-        self.encoder = CBAMPlainConvEncoder(input_channels, n_stages, features_per_stage, conv_op, kernel_sizes, strides,
+        self.encoder = PlainConvEncoder(input_channels, n_stages, features_per_stage, conv_op, kernel_sizes, strides,
                                         n_conv_per_stage, conv_bias, norm_op, norm_op_kwargs, dropout_op,
                                         dropout_op_kwargs, nonlin, nonlin_kwargs, return_skips=True,
                                         nonlin_first=nonlin_first)
@@ -62,6 +79,7 @@ class CBAMPlainConvUNet(PlainConvUNet):
                                    nonlin_first=nonlin_first)
 
     def forward(self, x):
+        x = self.cbam(x)
         skips = self.encoder(x)
         return self.decoder(skips)
 
