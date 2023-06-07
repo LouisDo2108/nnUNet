@@ -4,7 +4,7 @@
 #SBATCH --nodelist=phoenix3
 #SBATCH --time=30-00:00:00
 #SBATCH --ntasks=1               # total number of tasks across all nodes
-#SBATCH --cpus-per-task=3        # cpu-cores per task (>1 if multi-threaded tasks)
+#SBATCH --cpus-per-task=10        # cpu-cores per task (>1 if multi-threaded tasks)
 #SBATCH --mem-per-cpu=6G         # memory per cpu-core (4G is default)
 export CUDA_DEVICE_ORDER=PCI_BUS_ID # Change according to GPU availability
 export CUDA_VISIBLE_DEVICES=0 # Change according to GPU availability

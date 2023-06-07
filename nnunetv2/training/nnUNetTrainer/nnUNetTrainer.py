@@ -869,7 +869,7 @@ class nnUNetTrainer(object):
             # del data
             l = self.loss(output, target)
 
-        if self.grad_scaler is not None:
+        if self.grad_scaler is not None: 
             self.grad_scaler.scale(l).backward()
             self.grad_scaler.unscale_(self.optimizer)
             torch.nn.utils.clip_grad_norm_(self.network.parameters(), 12)
