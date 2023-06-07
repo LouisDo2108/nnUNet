@@ -77,6 +77,7 @@ def get_network_from_plans(plans_manager: PlansManager,
     model.apply(InitWeights_He(1e-2))
     if network_class == ResidualEncoderUNet:
         model.apply(init_last_bn_before_add_to_0)
+<<<<<<< HEAD
     return model
 
 
@@ -207,4 +208,6 @@ def get_network_from_plans_cbam(plans_manager: PlansManager,
 
     if custom_network_config_path is not None:
         customize_network(model, custom_network_config_path)
+=======
+>>>>>>> d316a3a25fcd2aef66526996373203981f20215f
     return model

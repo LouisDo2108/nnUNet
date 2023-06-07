@@ -1,6 +1,7 @@
 import torch
-
+import torch.nn as nn
 from nnunetv2.training.nnUNetTrainer.nnUNetTrainer import nnUNetTrainer
+from nnunetv2.utilities.plans_handling.plans_handler import PlansManager, ConfigurationManager
 
 
 class nnUNetTrainer_5epochs(nnUNetTrainer):
@@ -75,9 +76,6 @@ class nnUNetTrainer_8000epochs(nnUNetTrainer):
         super().__init__(plans, configuration, fold, dataset_json, unpack_dataset, device)
         self.num_epochs = 8000
 
-
-from nnunetv2.utilities.plans_handling.plans_handler import PlansManager, ConfigurationManager
-import torch.nn as nn
 
 class nnUNetTrainer_50epochs_tuanluc(nnUNetTrainer):
     def __init__(self, plans: dict, configuration: str, fold: int, dataset_json: dict, unpack_dataset: bool = True,
