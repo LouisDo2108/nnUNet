@@ -1,6 +1,6 @@
-# env
-./run_phoenix1.sh
 # Tuan-Luc Huynh
+run_phoenix1.sh
+slurm_run.sh
 data/
 *.out
 *.pt

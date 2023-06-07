@@ -3,8 +3,8 @@ from torch import nn
 from dynamic_network_architectures.architectures.unet import PlainConvUNet, ResidualEncoderUNet
 from dynamic_network_architectures.building_blocks.helper import get_matching_instancenorm, convert_dim_to_conv_op, get_matching_batchnorm
 from dynamic_network_architectures.initialization.weight_init import init_last_bn_before_add_to_0
-from nnunetv2.models.unet_encoder import CBAMPlainConvUNet
 
+from nnunetv2.models.unet_encoder import CBAMPlainConvUNet
 from nnunetv2.utilities.plans_handling.plans_handler import ConfigurationManager, PlansManager
 from nnunetv2.tuanluc_dev.network_initialization import *
 from nnunetv2.tuanluc_dev.utils import *
@@ -521,6 +521,7 @@ def get_network_from_plans_cbam(plans_manager: PlansManager,
     return model
 
 
+# Extended nnUNet with CBAM on everystage
 def get_network_from_plans_cbam_everystage(plans_manager: PlansManager,
                            dataset_json: dict,
                            configuration_manager: ConfigurationManager,
