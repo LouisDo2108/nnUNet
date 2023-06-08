@@ -4,6 +4,49 @@ import numpy as np
 import torch
 import os
 import yaml
+import shutil
+from batchgenerators.utilities.file_and_folder_operations import *
+from copy import deepcopy
+from natsort import natsorted
+from pathlib import Path
+import SimpleITK as sitk
+
+
+def post_processing(filename, input_folder, output_folder, num_voxels=200):
+    # a = sitk.ReadImage(join(input_folder, filename))
+    # b = sitk.GetArrayFromImage(a)
+    # c = deepcopy(b)
+    # count = np.unique(c, return_counts=True)[1]
+    # if len(count) == 4 and count[-1] < num_voxels:
+    #     print(filename)
+    #     print("Before", count)
+    #     c = np.where(c == 4, 1, c)
+    #     print("After", np.unique(c, return_counts=True))
+    #     print("-------------------------")
+    # d = sitk.GetImageFromArray(c)
+    # d.CopyInformation(a)
+    # sitk.WriteImage(d, join(output_folder, filename))
+    
+    input_path = join(input_folder, filename)
+    output_path = join(output_folder, filename)
+    
+    a = sitk.ReadImage(input_path)
+    b = sitk.GetArrayFromImage(a)
+    
+    c = np.copy(b)
+    count = np.bincount(c.flatten())
+    
+    if len(count) == 5 and count[4] < num_voxels:
+        c = np.where(c == 4, 1, c)
+    
+    d = sitk.GetImageFromArray(c)
+    d.CopyInformation(a)
+    
+    sitk.WriteImage(d, output_path)
+    
+
+def zip_folder(input_folder_path, output_folder_path):
+    shutil.make_archive(output_folder_path, 'zip', input_folder_path)
 
 
 def count_parameters(model):
