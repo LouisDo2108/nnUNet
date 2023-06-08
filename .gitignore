@@ -1,5 +1,5 @@
 # Tuan-Luc Huynh
-run_phoenix1.sh
+run_phoenix1*.sh
 slurm_run.sh
 data/
 *.out

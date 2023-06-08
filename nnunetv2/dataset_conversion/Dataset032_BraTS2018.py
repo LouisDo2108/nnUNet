@@ -3,13 +3,17 @@ import shutil
 from multiprocessing.pool import Pool
 
 import os
+import argparse
+from copy import deepcopy
+from natsort import natsorted
+from pathlib import Path
 import SimpleITK as sitk
 import numpy as np
 from batchgenerators.utilities.file_and_folder_operations import *
 from nnunetv2.dataset_conversion.generate_dataset_json import generate_dataset_json
 from nnunetv2.paths import nnUNet_raw
+from nnunetv2.tuanluc_dev.utils import zip_folder, post_processing
 
-import argparse
 
 def copy_BraTS_segmentation_and_convert_labels_to_nnUNet(in_file: str, out_file: str) -> None:
     # use this for segmentation only!!!
@@ -72,6 +76,7 @@ if __name__ == "__main__":
     parser.add_argument('--exp-name', type=str, help='The name of experiment')
     parser.add_argument('--train_test', type=str, help='Train or test')
     parser.add_argument('--root-dir', type=str, default="/home/dtpthao/workspace/nnUNet/env/results/Dataset032_BraTS2018/", help='Default folder to output result')
+    parser.add_argument('--post', action='store_true', help='Enable post-processing')
     args = parser.parse_args()
     
     # # 1. Dataset conversion (Train + Test)
@@ -141,14 +146,34 @@ if __name__ == "__main__":
     root_dir = "/home/dtpthao/workspace/nnUNet/env/results/Dataset032_BraTS2018/"
     exp_name = args.exp_name
     train_test = args.train_test
+    print("-"*10, train_test, "-"*10)
+    
     test_input_folder = os.path.join(root_dir, f"{exp_name}/fold_0/{train_test}")
     test_output_folder = os.path.join(root_dir, f"{exp_name}/fold_0/{train_test}_brats_format")
     
+    print("Converting...")
     convert_labels_back_to_BraTS_2018_2019_convention(
         test_input_folder,
         test_output_folder
     )
     
-    print("Completed converting labels back to BraTS 2018/2019 convention")
+    zip_folder(test_output_folder, os.path.join(root_dir, f"{exp_name}/fold_0/{train_test}_results"))
+    
+    if args.post:
+        print("Post processing...")
+        post_input_folder = test_output_folder
+        post_output_folder = os.path.join(root_dir, f"{exp_name}/fold_0/{train_test}_post_brats_format")
+        Path(post_output_folder).mkdir(parents=True, exist_ok=True)
+        
+        for filename in natsorted(os.listdir(post_input_folder)):
+            if filename.endswith(".nii.gz"):
+                post_processing(filename, post_input_folder, post_output_folder, num_voxels=200)
+                
+        zip_folder(post_output_folder, os.path.join(root_dir, f"{exp_name}/fold_0/{train_test}_results_post"))
+
+    
+    print("Completed converting labels back to BraTS2018 convention")
     print("Input folder: ", test_input_folder)
     print("Output folder: ", test_output_folder)
+    if args.post:
+        print("Post output folder: ", post_output_folder)
