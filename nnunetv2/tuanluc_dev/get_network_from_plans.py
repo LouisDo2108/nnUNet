@@ -292,8 +292,8 @@ def get_network_from_plans_jcs(plans_manager: PlansManager,
     return model
 
 
-# Extended nnUNet for single moda training
-def get_network_from_plans_single_moda(plans_manager: PlansManager,
+# Extended nnUNet for T1T2 moda training
+def get_network_from_plans_t1t2(plans_manager: PlansManager,
                            dataset_json: dict,
                            configuration_manager: ConfigurationManager,
                            num_input_channels: int,
@@ -314,7 +314,7 @@ def get_network_from_plans_single_moda(plans_manager: PlansManager,
 
     segmentation_network_class_name = configuration_manager.UNet_class_name
     mapping = {
-        'PlainConvUNet': SingleModaConvUnet,
+        'PlainConvUNet': T1T2ConvUnet,
         'ResidualEncoderUNet': ResidualEncoderUNet
     }
     kwargs = {

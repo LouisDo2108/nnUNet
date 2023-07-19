@@ -30,7 +30,7 @@ class HGGLGGClassifier(nn.Module):
     def __init__(self, input_channels, num_classes, dropout_rate=0.5, return_skips=False, custom_network_config_path=None):
         super(HGGLGGClassifier, self).__init__()
         encoder_params = {
-            'input_channels': input_channels,
+            'input_channels': 4,#input_channels,
             'n_stages': 6,
             'features_per_stage': [32, 64, 128, 256, 320, 320],
             'n_conv_per_stage': [2, 2, 2, 2, 2, 2],
@@ -153,6 +153,7 @@ class JCSConvUnet(PlainConvUNet):
             dropout_op_kwargs, nonlin, nonlin_kwargs, deep_supervision, nonlin_first
         )
         classifier = HGGLGGClassifier(4, 2, return_skips=True, custom_network_config_path="/home/dtpthao/workspace/nnUNet/nnunetv2/tuanluc_dev/configs/base.yaml")
+        # classifier.load_state_dict(torch.load("/home/dtpthao/workspace/nnUNet/nnunetv2/tuanluc_dev/results/hgg_lgg_brats2020/checkpoints/model_45.pt"), strict=False)
         classifier.load_state_dict(torch.load("/home/dtpthao/workspace/nnUNet/nnunetv2/tuanluc_dev/results/hgg_lgg/checkpoints/model_55.pt"), strict=False)
         self.classifier = classifier.encoder
         self.classifier.to("cuda")
@@ -169,7 +170,7 @@ class JCSConvUnet(PlainConvUNet):
         return self.decoder(skips)
 
 
-class SingleModaConvUnet(PlainConvUNet):
+class T1T2ConvUnet(PlainConvUNet):
     def __init__(self,
                  input_channels: int,
                  n_stages: int,
@@ -195,15 +196,19 @@ class SingleModaConvUnet(PlainConvUNet):
             num_classes, n_conv_per_stage_decoder, conv_bias, norm_op, norm_op_kwargs, dropout_op, 
             dropout_op_kwargs, nonlin, nonlin_kwargs, deep_supervision, nonlin_first
         )
+        # These 2 lines are for testing the attention weight hypothesis
         # self.weights = nn.Parameter(torch.Tensor([1.0, 1.0, 1.0, 1.0]))
         # self.bias = nn.Parameter(torch.Tensor([0.0, 0.0, 0.0, 0.0]))
-        self.mask = torch.zeros(4, 128, 128, 128).to(torch.device("cuda"))
-        self.mask[3] = 1 # for flair
-        self.mask = self.mask.view(1, 4, 128, 128, 128)
+        
+        # self.mask = torch.zeros(4, 128, 128, 128).to(torch.device("cuda"))
+        # self.mask[0] = 1 # For T1
+        # self.mask[2] = 1 # For T2
+        # self.mask = self.mask.view(1, 4, 128, 128, 128)
     
     def forward(self, x):
+        # This line is for testing the attention weight hypothesis
         # x = x * self.weights.view(1, 4, 1, 1, 1) + self.bias.view(1, 4, 1, 1, 1)
-        x = x * self.mask
+        # x = x * self.mask
         skips = self.encoder(x)
         return self.decoder(skips)
 
@@ -225,9 +230,11 @@ class BasicConv(nn.Module):
             x = self.relu(x)
         return x
 
+
 class Flatten(nn.Module):
     def forward(self, x):
         return x.view(x.size(0), -1)
+
 
 class ChannelGate(nn.Module):
     def __init__(self, gate_channels, reduction_ratio=2, pool_types=['avg', 'max']):
@@ -270,15 +277,18 @@ class ChannelGate(nn.Module):
         scale = scale.unsqueeze(-1).unsqueeze(-1).unsqueeze(-1).expand_as(x)
         return x * scale
 
+
 def logsumexp_3d(tensor):
     tensor_flatten = tensor.view(tensor.size(0), tensor.size(1), -1)
     s, _ = torch.max(tensor_flatten, dim=2, keepdim=True)
     outputs = s + (tensor_flatten - s).exp().sum(dim=2, keepdim=True).log()
     return outputs
 
+
 class ChannelPool(nn.Module):
     def forward(self, x):
         return torch.cat((torch.max(x, 1)[0].unsqueeze(1), torch.mean(x, 1).unsqueeze(1)), dim=1)
+
 
 class SpatialGate(nn.Module):
     def __init__(self):
@@ -293,6 +303,7 @@ class SpatialGate(nn.Module):
         scale = F.sigmoid(x_out)  # broadcasting
         return x * scale
 
+
 class CBAM(nn.Module):
     def __init__(self, gate_channels, reduction_ratio=16, pool_types=['avg', 'max'], no_spatial=False):
         super(CBAM, self).__init__()
@@ -306,7 +317,6 @@ class CBAM(nn.Module):
         if not self.no_spatial:
             x_out = self.SpatialGate(x_out)
         return x_out
-
 
 
 class CBAMPlainConvEncoder(nn.Module):
@@ -407,6 +417,7 @@ class CBAMPlainConvEncoder(nn.Module):
                 output += self.stages[s].compute_conv_feature_map_size(input_size)
             input_size = [i // j for i, j in zip(input_size, self.strides[s])]
         return output
+
     
 class CBAMEveryStagePlainConvUNet(PlainConvUNet):
     def __init__(self,

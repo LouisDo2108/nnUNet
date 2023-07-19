@@ -82,7 +82,6 @@ def get_sliding_window_generator(image_size: Tuple[int, ...], tile_size: Tuple[i
 def maybe_mirror_and_predict(network: nn.Module, x: torch.Tensor, mirror_axes: Tuple[int, ...] = None) \
         -> torch.Tensor:
     prediction = network(x)
-
     if mirror_axes is not None:
         # check for invalid numbers in mirror_axes
         # x should be 5d for 3d images and 4d for 2d. so the max value of mirror_axes cannot exceed len(x.shape) - 3
@@ -164,7 +163,6 @@ def predict_sliding_window_return_logits(network: nn.Module,
                     gaussian.clip_(min=mn)
 
             slicers = get_sliding_window_generator(data.shape[1:], tile_size, tile_step_size, verbose=verbose)
-
             # preallocate results and num_predictions. Move everything to the correct device
             try:
                 predicted_logits = torch.zeros((num_segmentation_heads, *data.shape[1:]), dtype=torch.half,
@@ -186,6 +184,8 @@ def predict_sliding_window_return_logits(network: nn.Module,
             for sl in slicers:
                 workon = data[sl][None]
                 workon = workon.to(device, non_blocking=False)
+                # workon[0][1] = 0.0
+                # workon[0][3] = 0.0
 
                 prediction = maybe_mirror_and_predict(network, workon, mirror_axes)[0].to(results_device)
 

@@ -10,14 +10,12 @@ class nnUNetDataLoader3D(nnUNetDataLoaderBase):
         data_all = np.zeros(self.data_shape, dtype=np.float32)
         seg_all = np.zeros(self.seg_shape, dtype=np.int16)
         case_properties = []
-
         for j, i in enumerate(selected_keys):
             # oversampling foreground will improve stability of model training, especially if many patches are empty
             # (Lung for example)
             force_fg = self.get_do_oversample(j)
 
             data, seg, properties = self._data.load_case(i)
-
             # If we are doing the cascade then the segmentation from the previous stage will already have been loaded by
             # self._data.load_case(i) (see nnUNetDataset.load_case)
             shape = data.shape[1:]
@@ -53,3 +51,18 @@ if __name__ == '__main__':
     ds = nnUNetDataset(folder, 0)  # this should not load the properties!
     dl = nnUNetDataLoader3D(ds, 5, (16, 16, 16), (16, 16, 16), 0.33, None, None)
     a = next(dl)
+
+    # folder = '/home/dtpthao/workspace/nnUNet/env/preprocessed/Dataset032_BraTS2018/nnUNetPlans_3d_fullres'
+    # from nnunetv2.training.data_augmentation.compute_initial_patch_size import get_patch_size
+    # ds = nnUNetDataset(folder)  # this should not load the properties!
+    # rotation_for_DA = {
+    #                 'x': (-30. / 360 * 2. * np.pi, 30. / 360 * 2. * np.pi),
+    #                 'y': (-30. / 360 * 2. * np.pi, 30. / 360 * 2. * np.pi),
+    #                 'z': (-30. / 360 * 2. * np.pi, 30. / 360 * 2. * np.pi),
+    #             }
+    # initial_patch_size = get_patch_size([128, 128, 128][-3:],
+    #                                         *rotation_for_DA.values(),
+    #                                         (0.85, 1.25))
+    # dl = nnUNetDataLoader3D(ds, 4, initial_patch_size, (128, 128, 128), 0.33, None, None)
+    # a = next(dl)
+    # print(a.shape)

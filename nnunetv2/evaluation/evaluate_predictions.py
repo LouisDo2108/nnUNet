@@ -21,6 +21,14 @@ def label_or_region_to_key(label_or_region: Union[int, Tuple[int]]):
     return str(label_or_region)
 
 
+# def key_to_label_or_region(key: str):
+#     try:
+#         return int(key)
+#     except ValueError:
+#         key = key.replace('(', '')
+#         key = key.replace(')', '')
+#         splitted = key.split(',')
+#         return tuple([int(i) for i in splitted])
 def key_to_label_or_region(key: str):
     try:
         return int(key)
@@ -28,8 +36,10 @@ def key_to_label_or_region(key: str):
         key = key.replace('(', '')
         key = key.replace(')', '')
         splitted = key.split(',')
-        return tuple([int(i) for i in splitted])
-
+        try:
+            return tuple([int(i) for i in splitted])
+        except ValueError:
+            return tuple([int(splitted[0])])
 
 def save_summary_json(results: dict, output_file: str):
     """

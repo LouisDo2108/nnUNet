@@ -29,7 +29,7 @@ from nnunetv2.utilities.plans_handling.plans_handler import PlansManager, Config
 from nnunetv2.utilities.utils import create_lists_from_splitted_dataset_folder
 
 from nnunetv2.tuanluc_dev.get_network_from_plans import *
-
+from glob import glob
 
 class PreprocessAdapter(DataLoader):
     def __init__(self, list_of_lists: List[List[str]], list_of_segs_from_prev_stage_files: Union[List[None], List[str]],
@@ -107,12 +107,12 @@ def load_what_we_need(model_training_output_dir, use_folds, checkpoint_name, cus
     else:
         
         network_mapping = {
-            'BN': get_network_from_plans_bn,
-            'JCS': get_network_from_plans_jcs,
-            'Moda': get_network_from_plans_single_moda,
-            'REUnet': get_network_from_plans_REUnet,
             'CBAM': get_network_from_plans_cbam,
             'CBAM_everystage': get_network_from_plans_cbam_everystage,
+            'JCS': get_network_from_plans_jcs,
+            'BN': get_network_from_plans_bn,
+            'T1T2': get_network_from_plans_t1t2,
+            'REUnet': get_network_from_plans_REUnet,
         }
         
         for k in network_mapping.keys():
@@ -263,27 +263,46 @@ def predict_from_raw_data(list_of_lists_or_source_folder: Union[str, List[List[s
     # num seg heads is needed because we need to preallocate the results in predict_sliding_window_return_logits
     label_manager = plans_manager.get_label_manager(dataset_json)
     num_seg_heads = label_manager.num_segmentation_heads
-
+    
     # go go go
     # spawn allows the use of GPU in the background process in case somebody wants to do this. Not recommended. Trust me.
     # export_pool = multiprocessing.get_context('spawn').Pool(num_processes_segmentation_export)
     # export_pool = multiprocessing.Pool(num_processes_segmentation_export)
     with multiprocessing.get_context("spawn").Pool(num_processes_segmentation_export) as export_pool:
         network = network.to(device)
-
+        # from thop import profile
+        # from thop import clever_format
+        # from torchsummary import summary
+        # print(network)
+        # summary(network, (4, 128, 128, 128))
+        # input = torch.randn([1, 4, 128, 128, 128]).to(device)
+        # macs, params = profile(network, inputs=(input, ))
+        # macs, params = clever_format([macs*2, params], "%.3f")
+        # print('[Network %s] Total number of parameters: ' % 'disA', params)
+        # print('[Network %s] Total number of FLOPs: ' % 'disA', macs)
+        # print('-----------------------------------------------')
+        # exit(0)
+        
         r = []
         with torch.no_grad():
             for preprocessed in mta:
-                data = preprocessed['data']
+                data = preprocessed['data'] 
                 if isinstance(data, str):
                     delfile = data
                     data = torch.from_numpy(np.load(data))
                     os.remove(delfile)
-
                 ofile = preprocessed['ofile']
                 print(f'\nPredicting {os.path.basename(ofile)}:')
                 print(f'perform_everything_on_gpu: {perform_everything_on_gpu}')
+                filename = os.path.basename(ofile)
+                ### Load synthesis data
+                
+                # synthesis_data = get_synthesis_data(filename=filename, shape=tuple(data[0].shape))
 
+                # if synthesis_data:
+                #     data[1] = synthesis_data["t1ce"]
+                #     data[3] = synthesis_data["flair"]
+                # # save_npy(filename, data)
                 properties = preprocessed['data_properites']
 
                 # let's not get into a runaway situation where the GPU predicts so fast that the disk has to b swamped with
@@ -353,7 +372,8 @@ def predict_from_raw_data(list_of_lists_or_source_folder: Union[str, List[List[s
                                 precomputed_gaussian=inference_gaussian,
                                 perform_everything_on_gpu=overwrite_perform_everything_on_gpu,
                                 verbose=verbose,
-                                device=device)
+                                device=device,
+                                filename=filename)
                         else:
                             prediction += predict_sliding_window_return_logits(
                                 network, data, num_seg_heads,
@@ -364,10 +384,10 @@ def predict_from_raw_data(list_of_lists_or_source_folder: Union[str, List[List[s
                                 precomputed_gaussian=inference_gaussian,
                                 perform_everything_on_gpu=overwrite_perform_everything_on_gpu,
                                 verbose=verbose,
-                                device=device)
+                                device=device,
+                                filename=filename)
                     if len(parameters) > 1:
                         prediction /= len(parameters)
-
                 print('Prediction done, transferring to CPU if needed')
                 prediction = prediction.to('cpu').numpy()
 
@@ -390,7 +410,6 @@ def predict_from_raw_data(list_of_lists_or_source_folder: Union[str, List[List[s
                 )
                 print(f'done with {os.path.basename(ofile)}')
         [i.get() for i in r]
-
     # we need these two if we want to do things with the predictions like for example apply postprocessing
     shutil.copy(join(model_training_output_dir, 'dataset.json'), join(output_folder, 'dataset.json'))
     shutil.copy(join(model_training_output_dir, 'plans.json'), join(output_folder, 'plans.json'))

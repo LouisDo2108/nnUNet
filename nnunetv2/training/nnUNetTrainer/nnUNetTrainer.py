@@ -202,6 +202,22 @@ class nnUNetTrainer(object):
                                                            self.configuration_manager,
                                                            self.num_input_channels,
                                                            enable_deep_supervision=True).to(self.device)
+            # # print(self.network)
+            # from thop import profile
+            # from thop import clever_format
+            # from fvcore.nn import FlopCountAnalysis, flop_count
+
+            # # summary(self.network, (4, 128, 128, 128))
+            # input = torch.randn([1, 4, 128, 128, 128]).to(self.device)  
+            # flops = FlopCountAnalysis(self.network, input)
+            # print("Flops: ", flops.total())
+            # # print("Flops: ", flop_count(self.network, input))
+            # macs, params = profile(self.network, inputs=(input, ))
+            # macs, params = clever_format([macs*2, params], "%.3f")
+            # print('[Network %s] Total number of parameters: ' % 'disA', params)
+            # print('[Network %s] Total number of FLOPs: ' % 'disA', macs)
+            # print('-----------------------------------------------')
+            # exit(0)
             # compile network for free speedup
             if ('nnUNet_compile' in os.environ.keys()) and (
                     os.environ['nnUNet_compile'].lower() in ('true', '1', 't')):
@@ -619,7 +635,6 @@ class nnUNetTrainer(object):
 
     def get_plain_dataloaders(self, initial_patch_size: Tuple[int, ...], dim: int):
         dataset_tr, dataset_val = self.get_tr_and_val_datasets()
-
         if dim == 2:
             dl_tr = nnUNetDataLoader2D(dataset_tr, self.batch_size,
                                        initial_patch_size,
@@ -852,7 +867,6 @@ class nnUNetTrainer(object):
     def train_step(self, batch: dict) -> dict:
         data = batch['data']
         target = batch['target']
-
         data = data.to(self.device, non_blocking=True)
         if isinstance(target, list):
             target = [i.to(self.device, non_blocking=True) for i in target]

@@ -5,6 +5,7 @@ data/
 *.out
 *.pt
 *.pth
+.out/
 nnunetv2/tuanluc_dev/results
 nnunetv2/tuanluc_dev/brats_slices
 

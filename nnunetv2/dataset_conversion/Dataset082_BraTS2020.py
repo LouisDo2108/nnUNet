@@ -13,7 +13,12 @@ from batchgenerators.utilities.file_and_folder_operations import *
 from nnunetv2.dataset_conversion.generate_dataset_json import generate_dataset_json
 from nnunetv2.paths import nnUNet_raw
 from nnunetv2.tuanluc_dev.utils import zip_folder, post_processing
+import json
 
+json_file = "/home/dtpthao/workspace/nnUNet/env/preprocessed/Dataset082_BraTS2020/splits_final.json"
+
+with open(json_file) as f:
+    val = json.load(f)[0]["val"]
 
 def copy_BraTS_segmentation_and_convert_labels_to_nnUNet(in_file: str, out_file: str) -> None:
     # use this for segmentation only!!!
@@ -150,7 +155,7 @@ if __name__ == '__main__':
         
         for filename in natsorted(os.listdir(post_input_folder)):
             if filename.endswith(".nii.gz"):
-                post_processing(filename, post_input_folder, post_output_folder, num_voxels=200)
+                post_processing(filename, post_input_folder, post_output_folder, num_voxels=1000)
         zip_folder(post_output_folder, os.path.join(root_dir, f"{exp_name}/fold_0/{train_test}_results_post"))
     
     print("Completed converting labels back to BraTS2020 convention")

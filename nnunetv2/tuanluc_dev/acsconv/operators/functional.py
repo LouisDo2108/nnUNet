@@ -21,7 +21,7 @@ def acs_conv_f(x, weight, bias, kernel_size, dilation, padding, stride, groups, 
     conv3D_output_shape = (conv3D_output_shape_f(0, input_shape, kernel_size, dilation, padding, stride), 
                             conv3D_output_shape_f(1, input_shape, kernel_size, dilation, padding, stride), 
                             conv3D_output_shape_f(2, input_shape, kernel_size, dilation, padding, stride))
-            
+
     weight_a = weight[0:acs_kernel_split[0]].unsqueeze(2)
     weight_c = weight[acs_kernel_split[0]:(acs_kernel_split[0]+acs_kernel_split[1])].unsqueeze(3)
     weight_s = weight[(acs_kernel_split[0]+acs_kernel_split[1]):].unsqueeze(4)

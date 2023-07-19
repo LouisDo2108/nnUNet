@@ -11,7 +11,36 @@ from natsort import natsorted
 from pathlib import Path
 import SimpleITK as sitk
 
-
+train_no_et = [
+    "Brats18_2013_1_1",
+    "Brats18_2013_15_1",
+    "Brats18_2013_16_1",
+    "Brats18_2013_24_1",
+    "Brats18_2013_29_1",
+    "Brats18_2013_8_1",
+    "Brats18_2013_9_1",
+    "Brats18_TCIA09_177_1",
+    "Brats18_TCIA09_254_1",
+    "Brats18_TCIA09_402_1",
+    "Brats18_TCIA09_462_1",
+    "Brats18_TCIA09_493_1",
+    "Brats18_TCIA10_175_1",
+    "Brats18_TCIA10_266_1",
+    "Brats18_TCIA10_307_1",
+    "Brats18_TCIA10_310_1",
+    "Brats18_TCIA10_325_1",
+    "Brats18_TCIA10_351_1",
+    "Brats18_TCIA10_413_1",
+    "Brats18_TCIA10_625_1",
+    "Brats18_TCIA10_644_1",
+    "Brats18_TCIA12_298_1",
+    "Brats18_TCIA12_466_1",
+    "Brats18_TCIA13_618_1",
+    "Brats18_TCIA13_623_1",
+    "Brats18_TCIA13_630_1",
+    "Brats18_TCIA13_634_1",
+    "Brats18_TCIA13_645_1",
+]
 def post_processing(filename, input_folder, output_folder, num_voxels=200):
     # a = sitk.ReadImage(join(input_folder, filename))
     # b = sitk.GetArrayFromImage(a)
@@ -26,7 +55,8 @@ def post_processing(filename, input_folder, output_folder, num_voxels=200):
     # d = sitk.GetImageFromArray(c)
     # d.CopyInformation(a)
     # sitk.WriteImage(d, join(output_folder, filename))
-    
+    # if not filename.split('.')[0] in train_no_et:
+    #     return
     input_path = join(input_folder, filename)
     output_path = join(output_folder, filename)
     
@@ -36,6 +66,8 @@ def post_processing(filename, input_folder, output_folder, num_voxels=200):
     c = np.copy(b)
     count = np.bincount(c.flatten())
     
+    # print(filename, count)
+    # return
     if len(count) == 5 and count[4] < num_voxels:
         c = np.where(c == 4, 1, c)
     
@@ -46,6 +78,8 @@ def post_processing(filename, input_folder, output_folder, num_voxels=200):
     
 
 def zip_folder(input_folder_path, output_folder_path):
+    print("Zip input folder path:", input_folder_path)
+    print("Zip output folder path:", output_folder_path)
     shutil.make_archive(output_folder_path, 'zip', input_folder_path)
 
 
