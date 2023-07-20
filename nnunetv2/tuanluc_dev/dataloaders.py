@@ -86,8 +86,6 @@ def slice_brats_utils(npy, filename, resize_transform, save_dir, save=False):
 
 def normalize(img):
     img = img.astype(np.float32)
-    # img /= 257.0
-    # img = img.astype(np.uint8)
     min_value = img.min()
     max_value = img.max()
     img = (img - min_value) / (max_value-min_value)
@@ -393,35 +391,3 @@ def get_ImageNetBRATSDataset_dataloader(batch_size, num_workers):
 
 if __name__ == '__main__':
     slice_brats_from_raw_niigz(save=True)
-    # slice_brats_from_test(save=True)
-    
-    exit(0)
-    # dataset_json = "/home/dtpthao/workspace/nnUNet/env/preprocessed/Dataset032_BraTS2018/splits_final.json"
-    # with open(dataset_json, 'r') as f:
-    #     js = json.load(f)
-    # js = js[0]
-    # for k, v in js.items():
-    #     print(f"{k}: {len(v)}")
-    # print(len(os.listdir('/home/dtpthao/workspace/nnUNet/nnunetv2/tuanluc_dev/brats_slices/train')))
-    # print(len(os.listdir('/home/dtpthao/workspace/nnUNet/nnunetv2/tuanluc_dev/brats_slices/val')))
-
-    train_loader, val_loader = get_ImageNetBRATSDataset_dataloader(
-        batch_size=2, num_workers=4
-    )
-
-    my_augment_contrast = partial(
-        augment_contrast, 
-        contrast_range=(0.75, 1.25), preserve_range=True, per_channel=True, p_per_channel=0.15
-    )
-    
-    for data, label in train_loader:
-        temp = []
-        for i, d in enumerate(data):
-            print(d.type())
-            d = my_augment_contrast(d)
-            temp += d
-        data = torch.stack(temp)
-        print(data.shape, label.shape)
-        print(label)
-        # cv2.imwrite("/home/dtpthao/workspace/nnUNet/nnunetv2/tuanluc_dev/1.jpg", data.numpy()[0].transpose(1, 2, 0).astype(np.uint8))
-        break

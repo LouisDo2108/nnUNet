@@ -41,22 +41,8 @@ train_no_et = [
     "Brats18_TCIA13_634_1",
     "Brats18_TCIA13_645_1",
 ]
+
 def post_processing(filename, input_folder, output_folder, num_voxels=200):
-    # a = sitk.ReadImage(join(input_folder, filename))
-    # b = sitk.GetArrayFromImage(a)
-    # c = deepcopy(b)
-    # count = np.unique(c, return_counts=True)[1]
-    # if len(count) == 4 and count[-1] < num_voxels:
-    #     print(filename)
-    #     print("Before", count)
-    #     c = np.where(c == 4, 1, c)
-    #     print("After", np.unique(c, return_counts=True))
-    #     print("-------------------------")
-    # d = sitk.GetImageFromArray(c)
-    # d.CopyInformation(a)
-    # sitk.WriteImage(d, join(output_folder, filename))
-    # if not filename.split('.')[0] in train_no_et:
-    #     return
     input_path = join(input_folder, filename)
     output_path = join(output_folder, filename)
     

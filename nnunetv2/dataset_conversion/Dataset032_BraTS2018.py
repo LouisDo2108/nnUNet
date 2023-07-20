@@ -145,10 +145,10 @@ if __name__ == "__main__":
     
     # # 2. After training and inference, convert the inference folder's .nii.gz file labels back to BraTS convention
     root_dir = "/home/dtpthao/workspace/nnUNet/env/results/Dataset032_BraTS2018/"
-    # root_dir = "/home/dtpthao/workspace/nnUNet/env/results/Dataset034_BraTS2018_nicegan"
     exp_name = args.exp_name
     train_test = args.train_test
     fold = args.fold
+    post_output_folder = None
     print("-"*10, train_test, "-"*10)
     
     test_input_folder = os.path.join(root_dir, f"{exp_name}/fold_{fold}/{train_test}")

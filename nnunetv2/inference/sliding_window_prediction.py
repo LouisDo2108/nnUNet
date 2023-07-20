@@ -184,8 +184,6 @@ def predict_sliding_window_return_logits(network: nn.Module,
             for sl in slicers:
                 workon = data[sl][None]
                 workon = workon.to(device, non_blocking=False)
-                # workon[0][1] = 0.0
-                # workon[0][3] = 0.0
 
                 prediction = maybe_mirror_and_predict(network, workon, mirror_axes)[0].to(results_device)
 

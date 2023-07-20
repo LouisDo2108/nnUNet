@@ -78,6 +78,7 @@ if __name__ == '__main__':
     parser.add_argument('--train_test', type=str, help='Train or test')
     parser.add_argument('--root-dir', type=str, default="/home/dtpthao/workspace/nnUNet/env/results/Dataset032_BraTS2018/", help='Default folder to output result')
     parser.add_argument('--post', action='store_true', help='Enable post-processing')
+    parser.add_argument('--fold', type=str, help='Training fold')
     args = parser.parse_args()
     #    # 1. Dataset conversion (Train + Test) 
     #     brats_data_dir = '/home/dtpthao/workspace/nnUNet/data/BraTS_2020'
@@ -134,10 +135,12 @@ if __name__ == '__main__':
     root_dir = "/home/dtpthao/workspace/nnUNet/env/results/Dataset082_BraTS2020/"
     exp_name = args.exp_name
     train_test = args.train_test
+    fold = args.fold
+    post_output_folder = None
     print("-"*10, train_test, "-"*10)
     
-    test_input_folder = os.path.join(root_dir, f"{exp_name}/fold_0/{train_test}")
-    test_output_folder = os.path.join(root_dir, f"{exp_name}/fold_0/{train_test}_brats_format")
+    test_input_folder = os.path.join(root_dir, f"{exp_name}/fold_{fold}/{train_test}")
+    test_output_folder = os.path.join(root_dir, f"{exp_name}/fold_{fold}/{train_test}_brats_format")
     
     print("Converting...")
     convert_folder_with_preds_back_to_BraTS_labeling_convention(
@@ -145,18 +148,18 @@ if __name__ == '__main__':
         test_output_folder
     )
     
-    zip_folder(test_output_folder, os.path.join(root_dir, f"{exp_name}/fold_0/{train_test}_results"))
+    zip_folder(test_output_folder, os.path.join(root_dir, f"{exp_name}/fold_{fold}/{train_test}_results"))
     
     if args.post:
         print("Post processing...")
         post_input_folder = test_output_folder
-        post_output_folder = os.path.join(root_dir, f"{exp_name}/fold_0/{train_test}_post_brats_format")
+        post_output_folder = os.path.join(root_dir, f"{exp_name}/fold_{fold}/{train_test}_post_brats_format")
         Path(post_output_folder).mkdir(parents=True, exist_ok=True)
         
         for filename in natsorted(os.listdir(post_input_folder)):
             if filename.endswith(".nii.gz"):
                 post_processing(filename, post_input_folder, post_output_folder, num_voxels=1000)
-        zip_folder(post_output_folder, os.path.join(root_dir, f"{exp_name}/fold_0/{train_test}_results_post"))
+        zip_folder(post_output_folder, os.path.join(root_dir, f"{exp_name}/fold_{fold}/{train_test}_results_post"))
     
     print("Completed converting labels back to BraTS2020 convention")
     print("Input folder: ", test_input_folder)

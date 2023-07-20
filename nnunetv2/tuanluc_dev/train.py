@@ -29,6 +29,7 @@ import matplotlib.pyplot as plt
 from thop import profile
 from thop import clever_format
 
+
 class PolyLRScheduler(_LRScheduler):
     def __init__(self, optimizer, initial_lr: float, max_steps: int, exponent: float = 0.9, current_step: int = None):
         self.optimizer = optimizer
@@ -215,9 +216,7 @@ def train_imagenet_brats_resnet18_encoder():
 
 if __name__ == '__main__':
     set_seed(42)
-    # train_imagenet_brats_resnet18_encoder()
     train_hgg_lgg_classifier(
         output_folder="/home/dtpthao/workspace/nnUNet/nnunetv2/tuanluc_dev/results/test",
-        # custom_network_config_path="/home/dtpthao/workspace/nnUNet/nnunetv2/tuanluc_dev/configs/jcs_base.yaml"
         custom_network_config_path="/home/dtpthao/workspace/nnUNet/nnunetv2/tuanluc_dev/configs/jcs_acs_resnet18_encoder.yaml"
     )

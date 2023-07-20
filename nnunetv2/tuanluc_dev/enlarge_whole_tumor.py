@@ -51,6 +51,7 @@ def enlarge_whole_tumor(filename, input_folder, output_folder, num_pixels):
     d.CopyInformation(a)
     sitk.WriteImage(d, join(output_folder, filename))
     
+    
 if __name__ == "__main__":
     input_path = "/home/dtpthao/workspace/nnUNet/env/results/Dataset032_BraTS2018/t1_only/fold_0/test_brats_format_copy"
     output_path = "/home/dtpthao/workspace/nnUNet/env/results/Dataset032_BraTS2018/t1_only/fold_0/test_brats_format_enlarge_wt_1"
@@ -59,7 +60,5 @@ if __name__ == "__main__":
     from tqdm import tqdm
     for filename in tqdm(os.listdir(input_path)):
         enlarge_whole_tumor(filename, input_path, output_path, num_pixels=1)
-    
-    # enlarge_whole_tumor("Brats18_2013_0_1.nii.gz", input_path, output_path)
 
     

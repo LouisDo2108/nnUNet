@@ -606,6 +606,7 @@ class nnUNetTrainerBNDA_50epochs_tuanluc(nnUNetTrainerBN_50epochs_tuanluc):
 
 import torch.nn as nn
 from nnunetv2.utilities.plans_handling.plans_handler import PlansManager, ConfigurationManager
+
 class nnUNetTrainerJCSBNDA_50epochs_tuanluc(nnUNetTrainerBNDA_50epochs_tuanluc):
     def build_network_architecture(self,
                                    plans_manager: PlansManager,
