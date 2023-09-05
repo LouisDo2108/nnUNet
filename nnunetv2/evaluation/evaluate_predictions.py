@@ -37,7 +37,7 @@ def key_to_label_or_region(key: str):
         key = key.replace(')', '')
         splitted = key.split(',')
         try:
-            return tuple([int(i) for i in splitted])
+            return tuple([int(i) for i in splitted if len(i) > 0])
         except ValueError:
             return tuple([int(splitted[0])])
 

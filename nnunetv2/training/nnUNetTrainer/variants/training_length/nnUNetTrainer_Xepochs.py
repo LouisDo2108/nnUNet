@@ -85,7 +85,7 @@ class nnUNetTrainer_50epochs_tuanluc(nnUNetTrainer):
                  device: torch.device = torch.device('cuda'), **kwargs):
         super().__init__(plans, configuration, fold, dataset_json, unpack_dataset, device, **kwargs)
         self.__dict__.update(kwargs)
-        self.num_epochs = 50
+        self.num_epochs = 1
         self.custom_network_config_path = kwargs.get("custom_network_config_path")
         
         
